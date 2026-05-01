@@ -790,13 +790,6 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                             onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
                             numberOfMonths={1}
                             disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                            classNames={{
-                              day_range_start: "day-range-start aria-selected:bg-emerald-500 aria-selected:text-white",
-                              day_range_end: "day-range-end aria-selected:bg-emerald-500 aria-selected:text-white",
-                              day_range_middle: "aria-selected:bg-emerald-100 aria-selected:text-emerald-800",
-                              day_selected: "bg-emerald-500 text-white hover:bg-emerald-500 hover:text-white focus:bg-emerald-500 focus:text-white",
-                              day_today: "bg-emerald-50 text-emerald-700 font-semibold",
-                            }}
                           />
                         </PopoverContent>
                       </Popover>
