@@ -7,11 +7,40 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { MapPin, Calendar as CalendarIcon, Users, Plus, LogOut, Trash2, Settings, User, UserCircle, Pencil, Save, X } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Users, Plus, LogOut, Trash2, Settings, User, UserCircle, Pencil, Save, X, ArrowLeft } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { format, differenceInDays, addDays } from 'date-fns';
+
+const ACTIVITY_INTERESTS = [
+  { id: 'culture', label: 'Culture & Heritage', icon: '🏛️' },
+  { id: 'culinary', label: 'Culinary Experiences', icon: '🍜' },
+  { id: 'outdoor', label: 'Outdoor & Adventure', icon: '🏔️' },
+  { id: 'arts', label: 'Arts & Entertainment', icon: '🎭' },
+  { id: 'shopping', label: 'Shopping & Markets', icon: '🛍️' },
+  { id: 'wellness', label: 'Wellness & Relaxation', icon: '🧘' },
+  { id: 'nightlife', label: 'Nightlife & Social', icon: '🌙' },
+  { id: 'photography', label: 'Photography & Scenic', icon: '📸' },
+];
+
+const PACE_OPTIONS = [
+  {
+    id: 'leisurely',
+    label: 'Leisurely',
+    description: '2–3 key experiences per day with time to truly absorb each moment',
+  },
+  {
+    id: 'balanced',
+    label: 'Balanced',
+    description: '4–5 curated activities blending exploration with relaxed downtime',
+  },
+  {
+    id: 'immersive',
+    label: 'Immersive',
+    description: '6+ experiences per day, maximizing every hour of your trip',
+  },
+];
 
 const POPULAR_DESTINATIONS = [
   { city: 'Tokyo', country: 'Japan', full: 'Tokyo, Japan' },
@@ -127,6 +156,9 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [baseSuggestions, setBaseSuggestions] = useState<string[]>([]);
   const [showBaseSuggestions, setShowBaseSuggestions] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [selectedPace, setSelectedPace] = useState<'leisurely' | 'balanced' | 'immersive'>('balanced');
   const locationInputRef = useRef<HTMLInputElement>(null);
   const baseInputRef = useRef<HTMLInputElement>(null);
 
@@ -254,9 +286,9 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
             days: days.toString(),
             startDate,
             endDate,
-            interests: [],
+            interests: selectedInterests,
             travelStyle: 'balanced',
-            pace: 'moderate',
+            pace: selectedPace,
           }),
         }
       );
@@ -266,12 +298,11 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       if (response.ok) {
         await generatePlan(data.itinerary.id);
         setCreateDialogOpen(false);
-        setNewItinerary({
-          location: '',
-          base: '',
-          days: '3',
-        });
+        setNewItinerary({ location: '', base: '', days: '3' });
         setDateRange({ from: undefined, to: undefined });
+        setCreateStep(1);
+        setSelectedInterests([]);
+        setSelectedPace('balanced');
         fetchItineraries();
       } else {
         alert(data.error || 'Failed to create itinerary');
@@ -282,6 +313,19 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleAdvanceStep = () => {
+    if (!newItinerary.location) { alert('Please enter a destination'); return; }
+    if (!newItinerary.base) { alert('Please enter where you\'re staying'); return; }
+    if (!dateRange.from || !dateRange.to) { alert('Please select your travel dates'); return; }
+    setCreateStep(2);
+  };
+
+  const toggleInterest = (id: string) => {
+    setSelectedInterests(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
   };
 
   const generatePlan = async (itineraryId: string) => {
@@ -525,15 +569,11 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
               if (!isCreating) {
                 setCreateDialogOpen(open);
                 if (!open) {
-                  setNewItinerary({
-                    location: '',
-                    base: '',
-                    days: '3',
-                    interests: [],
-                    travelStyle: 'balanced',
-                    pace: 'moderate'
-                  });
+                  setNewItinerary({ location: '', base: '', days: '3' });
                   setDateRange({ from: undefined, to: undefined });
+                  setCreateStep(1);
+                  setSelectedInterests([]);
+                  setSelectedPace('balanced');
                 }
               }
             }}>
@@ -543,155 +583,220 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                   New Itinerary
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Plan Your Trip</DialogTitle>
                 <DialogDescription>
-                  Tell us where you're going and for how long.
+                  {createStep === 1 ? 'Tell us where you\'re going and when.' : 'Personalize your experience.'}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleCreateItinerary} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="location" className="text-base">Where are you going?</Label>
-                  <div className="relative">
-                    <Input
-                      ref={locationInputRef}
-                      id="location"
-                      value={newItinerary.location}
-                      onChange={(e) => handleLocationChange(e.target.value)}
-                      onFocus={() => {
-                        if (!newItinerary.location) {
-                          setLocationSuggestions(POPULAR_DESTINATIONS.slice(0, 8));
-                          setShowLocationSuggestions(true);
-                        } else if (newItinerary.location) {
-                          setShowLocationSuggestions(true);
-                        }
-                      }}
-                      onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
-                      required
-                      disabled={isCreating}
-                      placeholder="Type any city..."
-                      className="text-base"
-                    />
-                    {showLocationSuggestions && locationSuggestions.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                        {locationSuggestions.map((dest, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => handleLocationSelect(dest.full)}
-                            className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 last:border-0"
+
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 -mt-1 mb-1">
+                <div className={`h-1 flex-1 rounded-full ${createStep >= 1 ? 'bg-primary' : 'bg-muted'}`} />
+                <div className={`h-1 flex-1 rounded-full ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+              </div>
+
+              <form onSubmit={handleCreateItinerary}>
+                {createStep === 1 ? (
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="location" className="text-base">Where are you going?</Label>
+                      <div className="relative">
+                        <Input
+                          ref={locationInputRef}
+                          id="location"
+                          value={newItinerary.location}
+                          onChange={(e) => handleLocationChange(e.target.value)}
+                          onFocus={() => {
+                            if (!newItinerary.location) {
+                              setLocationSuggestions(POPULAR_DESTINATIONS.slice(0, 8));
+                              setShowLocationSuggestions(true);
+                            } else if (newItinerary.location) {
+                              setShowLocationSuggestions(true);
+                            }
+                          }}
+                          onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
+                          disabled={isCreating}
+                          placeholder="Type any city..."
+                          className="text-base"
+                        />
+                        {showLocationSuggestions && locationSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                            {locationSuggestions.map((dest, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => handleLocationSelect(dest.full)}
+                                className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 last:border-0"
+                              >
+                                <MapPin className="w-4 h-4 text-slate-400" />
+                                <div>
+                                  <div className="font-medium text-slate-900">{dest.city}</div>
+                                  <div className="text-xs text-slate-500">{dest.country}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">You can type any city in the world</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="base" className="text-base">Where are you staying?</Label>
+                      <div className="relative">
+                        <Input
+                          ref={baseInputRef}
+                          id="base"
+                          value={newItinerary.base}
+                          onChange={(e) => handleBaseChange(e.target.value)}
+                          onFocus={() => newItinerary.base && setShowBaseSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
+                          disabled={isCreating}
+                          placeholder="Neighborhood or hotel area"
+                          className="text-base"
+                        />
+                        {showBaseSuggestions && baseSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto">
+                            {baseSuggestions.map((neighborhood, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => handleBaseSelect(neighborhood)}
+                                className="w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-900 border-b border-slate-100 last:border-0"
+                              >
+                                {neighborhood}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">This helps us plan activities nearby</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-base">When are you traveling?</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full justify-start text-left font-normal h-11 ${
+                              !dateRange.from && 'text-muted-foreground'
+                            }`}
+                            disabled={isCreating}
                           >
-                            <MapPin className="w-4 h-4 text-slate-400" />
-                            <div>
-                              <div className="font-medium text-slate-900">{dest.city}</div>
-                              <div className="text-xs text-slate-500">{dest.country}</div>
-                            </div>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange.from ? (
+                              dateRange.to ? (
+                                <>
+                                  {format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({differenceInDays(dateRange.to, dateRange.from) + 1} days)
+                                  </span>
+                                </>
+                              ) : (
+                                format(dateRange.from, 'LLL dd, y')
+                              )
+                            ) : (
+                              <span>Pick your travel dates</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange.from}
+                            selected={dateRange}
+                            onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
+                            numberOfMonths={1}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-slate-500">Select your check-in and check-out dates</p>
+                    </div>
+
+                    <Button type="button" className="w-full h-11 text-base" onClick={handleAdvanceStep}>
+                      Continue
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-base">What experiences interest you?</Label>
+                        <p className="text-xs text-slate-500 mt-1">Select all that apply — your itinerary will be tailored accordingly.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {ACTIVITY_INTERESTS.map((interest) => {
+                          const selected = selectedInterests.includes(interest.id);
+                          return (
+                            <button
+                              key={interest.id}
+                              type="button"
+                              onClick={() => toggleInterest(interest.id)}
+                              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all text-left ${
+                                selected
+                                  ? 'border-primary bg-primary/5 text-primary'
+                                  : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
+                              }`}
+                            >
+                              <span className="text-base">{interest.icon}</span>
+                              <span>{interest.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-base">How would you like to pace your days?</Label>
+                      <div className="space-y-2">
+                        {PACE_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSelectedPace(option.id as 'leisurely' | 'balanced' | 'immersive')}
+                            className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                              selectedPace === option.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>{option.label}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{option.description}</div>
                           </button>
                         ))}
                       </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500">You can type any city in the world</p>
-                </div>
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="base" className="text-base">Where are you staying?</Label>
-                  <div className="relative">
-                    <Input
-                      ref={baseInputRef}
-                      id="base"
-                      value={newItinerary.base}
-                      onChange={(e) => handleBaseChange(e.target.value)}
-                      onFocus={() => newItinerary.base && setShowBaseSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
-                      required
-                      disabled={isCreating}
-                      placeholder="Neighborhood or hotel area"
-                      className="text-base"
-                    />
-                    {showBaseSuggestions && baseSuggestions.length > 0 && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto">
-                        {baseSuggestions.map((neighborhood, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => handleBaseSelect(neighborhood)}
-                            className="w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-900 border-b border-slate-100 last:border-0"
-                          >
-                            {neighborhood}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500">This helps us plan activities nearby</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-base">When are you traveling?</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`w-full justify-start text-left font-normal h-11 ${
-                          !dateRange.from && 'text-muted-foreground'
-                        }`}
-                        disabled={isCreating}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.from ? (
-                          dateRange.to ? (
-                            <>
-                              {format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                ({differenceInDays(dateRange.to, dateRange.from) + 1} days)
-                              </span>
-                            </>
-                          ) : (
-                            format(dateRange.from, 'LLL dd, y')
-                          )
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" onClick={() => setCreateStep(1)} className="gap-1.5" disabled={isCreating}>
+                        <ArrowLeft className="w-4 h-4" />
+                        Back
+                      </Button>
+                      <Button type="submit" className="flex-1 h-11 text-base" disabled={isCreating}>
+                        {isCreating ? (
+                          <>
+                            <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                            Creating your trip...
+                          </>
                         ) : (
-                          <span>Pick your travel dates</span>
+                          'Generate Itinerary'
                         )}
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange.from}
-                        selected={dateRange}
-                        onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
-                        numberOfMonths={1}
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <p className="text-xs text-slate-500">Select your check-in and check-out dates</p>
-                </div>
-
-                <Button type="submit" className="w-full h-11 text-base" disabled={isCreating}>
-                  {isCreating ? (
-                    <>
-                      <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
-                      Creating your trip...
-                    </>
-                  ) : (
-                    'Generate Itinerary'
-                  )}
-                </Button>
+                    </div>
+                    {isCreating && (
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">Our AI is planning your perfect trip...</p>
+                        <p className="text-xs text-muted-foreground mt-1">This may take up to 30 seconds</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </form>
-              {isCreating && (
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Our AI is planning your perfect trip...
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This may take up to 30 seconds
-                  </p>
-                </div>
-              )}
             </DialogContent>
           </Dialog>
           </div>
