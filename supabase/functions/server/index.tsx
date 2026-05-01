@@ -717,10 +717,10 @@ async function generateOptimalPlan(
     }[travelStyle] || '';
 
     const paceContext = {
-      'relaxed': `\nPACE: Relaxed pace. Plan ONLY 1-2 major activities per day with LOTS of downtime. Include longer meal times, coffee breaks, and time to simply enjoy the atmosphere. Each activity should have 3-4 hours allocated. Leave afternoon/evening open for spontaneous exploration.`,
-      'moderate': `\nPACE: Moderate pace. Plan 3 activities per day (morning, afternoon, evening) with reasonable breaks between. Balance sightseeing with meals and rest. This is a comfortable pace that doesn't feel rushed.`,
-      'packed': `\nPACE: Packed schedule. Plan 4-5 activities per day to maximize sightseeing. Back-to-back experiences with minimal downtime. Quick meals between attractions. This traveler wants to see and do as much as possible.`
-    }[pace] || '';
+      'leisurely': `\nPACE: Leisurely pace. Plan ONLY 2 activities per day maximum — one morning, one afternoon. Include long, leisurely meals, coffee breaks, and plenty of time to soak in the atmosphere. Each activity should have 3-4 hours allocated with no evening commitments. Leave plenty of room for spontaneous wandering.`,
+      'balanced': `\nPACE: Balanced pace. Plan exactly 3 activities per day (morning, afternoon, evening) with comfortable breaks in between. Balance sightseeing with meals and rest. A comfortable rhythm that doesn't feel rushed.`,
+      'immersive': `\nPACE: Immersive/packed schedule. Plan 5 activities per day to maximize experiences — early morning, late morning, lunch, afternoon, evening. Back-to-back experiences with minimal downtime. Quick meals between activities. This traveler wants to see and do as much as possible each day.`
+    }[pace] || `\nPACE: Balanced pace. Plan exactly 3 activities per day (morning, afternoon, evening) with comfortable breaks in between.`;
 
     const prompt = `Create a HIGHLY DETAILED ${days}-day travel itinerary for ${location}${area ? ` in the ${area} area` : ''}.
 ${interestContext}${styleContext}${paceContext}
@@ -728,7 +728,7 @@ ${interestContext}${styleContext}${paceContext}
 CRITICAL RULES:
 - The traveler is staying in the ${base} neighborhood. All activities must be optimized around this base location.
 - NO DUPLICATE VENUES - Each location should appear only ONCE across all ${days} days
-- NO REPEATED ACTIVITIES - Provide ${days * 3} completely unique experiences
+- NO REPEATED ACTIVITIES - Provide ${pace === 'leisurely' ? days * 2 : pace === 'immersive' ? days * 5 : days * 3} completely unique experiences
 
 MANDATORY REQUIREMENTS FOR EACH ACTIVITY:
 
