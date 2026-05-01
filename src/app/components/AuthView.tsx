@@ -195,7 +195,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             </div>
 
             {error && (
-              <div className="text-sm text-green-300 bg-green-900/30 p-3 rounded-lg border border-green-500/30">
+              <div className="text-sm text-red-300 bg-red-900/30 p-3 rounded-lg border border-red-500/30">
                 {error}
               </div>
             )}
