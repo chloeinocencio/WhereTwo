@@ -292,7 +292,6 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
         <div className="space-y-6">
           <div className="flex items-center gap-3 mb-6">
             <div className="h-1 flex-1 bg-gradient-to-r from-primary to-accent rounded-full"></div>
-            <h3 className="text-2xl font-bold text-foreground">Your Journey</h3>
             <div className="h-1 flex-1 bg-gradient-to-l from-primary to-accent rounded-full"></div>
           </div>
           {itinerary.plan.map((day: any, dayIndex: number) => (

@@ -515,7 +515,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
               <Button
                 variant="outline"
                 onClick={handleClearAllItineraries}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clear All
@@ -804,16 +804,16 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                 <div className="pt-4 border-t border-border">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Danger Zone</h3>
                   <div className="space-y-3">
-                    <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                      <h4 className="text-sm font-semibold text-destructive mb-2">Delete Account</h4>
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <h4 className="text-sm font-semibold text-green-700 mb-2">Delete Account</h4>
                       <p className="text-xs text-muted-foreground mb-3">
                         Permanently delete your account and all associated data. This action cannot be undone.
                       </p>
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
                         onClick={handleDeleteAccount}
-                        className="w-full"
+                        className="w-full text-green-700 hover:text-green-800 border-green-300 hover:bg-green-50"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Account
@@ -867,7 +867,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 -mt-2"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50 -mt-2"
                         onClick={(e) => handleDeleteItinerary(itinerary.id, e)}
                       >
                         <Trash2 className="w-4 h-4" />
