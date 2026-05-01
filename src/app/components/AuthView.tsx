@@ -125,7 +125,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           </h2>
           <p className="text-white/60 flex items-center justify-center gap-2 text-sm">
             <MapPin className="w-4 h-4 shrink-0" />
-            Collaborative travel planning for every destination
+            WhereTwo
           </p>
         </div>
         <p className="absolute bottom-10 text-white/40 text-sm">AI-powered itineraries</p>
