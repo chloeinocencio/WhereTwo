@@ -128,7 +128,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             AI-powered itineraries
           </p>
         </div>
-        <p className="absolute bottom-10 text-white/40 text-sm">© 2026 Chloe Inocencio. All rights reserved.</p>
+        <p className="absolute bottom-10 text-white/40 text-sm">© 2026 Chloe Inocencio. All Rights Reserved.</p>
       </div>
 
       {/* Right panel */}
