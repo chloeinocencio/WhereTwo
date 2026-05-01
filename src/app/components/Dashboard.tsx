@@ -216,7 +216,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const handleBaseChange = (value: string) => {
     setNewItinerary({ ...newItinerary, base: value });
 
-    if (value.length > 0 && newItinerary.location) {
+    if (newItinerary.location) {
       const locationName = newItinerary.location.split(',')[0].trim();
       const suggestions = getNeighborhoodSuggestions(locationName, value);
       setBaseSuggestions(suggestions);
@@ -322,7 +322,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     ];
 
     const cityNeighborhoods = neighborhoods[city] || genericAreas;
-    return cityNeighborhoods.filter(n => n.toLowerCase().includes(input.toLowerCase())).slice(0, 6);
+    return cityNeighborhoods.filter(n => !input || n.toLowerCase().includes(input.toLowerCase())).slice(0, 6);
   };
 
   const handleCreateItinerary = async (e: React.FormEvent) => {
@@ -687,12 +687,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           value={newItinerary.location}
                           onChange={(e) => handleLocationChange(e.target.value)}
                           onFocus={() => {
-                            if (!newItinerary.location) {
-                              setLocationSuggestions(POPULAR_DESTINATIONS.slice(0, 8));
-                              setShowLocationSuggestions(true);
-                            } else if (newItinerary.location) {
-                              setShowLocationSuggestions(true);
-                            }
+                            if (newItinerary.location) setShowLocationSuggestions(true);
                           }}
                           onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
                           disabled={isCreating}
@@ -729,7 +724,14 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           id="base"
                           value={newItinerary.base}
                           onChange={(e) => handleBaseChange(e.target.value)}
-                          onFocus={() => newItinerary.base && setShowBaseSuggestions(true)}
+                          onFocus={() => {
+                            if (newItinerary.location) {
+                              const locationName = newItinerary.location.split(',')[0].trim();
+                              const suggestions = getNeighborhoodSuggestions(locationName, newItinerary.base);
+                              setBaseSuggestions(suggestions);
+                              setShowBaseSuggestions(suggestions.length > 0);
+                            }
+                          }}
                           onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
                           disabled={isCreating}
                           placeholder="Neighborhood or hotel area"

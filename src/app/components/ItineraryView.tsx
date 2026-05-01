@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation, Info, Trash2, GripVertical } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import {
@@ -228,6 +228,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<string | null>(null);
   const [editedActivity, setEditedActivity] = useState<any>(null);
+  const [addingToDayIndex, setAddingToDayIndex] = useState<number | null>(null);
+  const [newActivity, setNewActivity] = useState({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -333,6 +335,26 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
       return { ...day, activities: day.activities.filter((a: any) => a.id !== activityId) };
     });
     setItinerary({ ...itinerary, plan: updatedPlan });
+    await savePlan(updatedPlan);
+  };
+
+  const handleAddActivity = async () => {
+    if (addingToDayIndex === null || !newActivity.title) return;
+    const activity = {
+      id: `custom-${Date.now()}`,
+      timeSlot: newActivity.timeSlot || 'Flexible',
+      type: newActivity.type || 'Custom',
+      title: newActivity.title,
+      description: newActivity.description,
+      duration: newActivity.duration || 'Self-paced',
+      notes: newActivity.notes,
+    };
+    const updatedPlan = itinerary.plan.map((day: any, i: number) =>
+      i !== addingToDayIndex ? day : { ...day, activities: [...day.activities, activity] }
+    );
+    setItinerary({ ...itinerary, plan: updatedPlan });
+    setAddingToDayIndex(null);
+    setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
     await savePlan(updatedPlan);
   };
 
@@ -478,15 +500,29 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                     <CardTitle className="text-2xl font-bold text-foreground">Day {day.day}</CardTitle>
                     <CardDescription className="text-base mt-1">{day.date}</CardDescription>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDeleteDay(dayIndex)}
-                    className="hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1.5" />
-                    Remove Day
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setAddingToDayIndex(dayIndex);
+                        setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
+                      }}
+                      className="hover:bg-primary/10 hover:text-primary text-muted-foreground"
+                      title="Add activity"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDeleteDay(dayIndex)}
+                      className="hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                      title="Remove day"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
@@ -522,6 +558,68 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
           ))}
         </div>
       </main>
+
+      <Dialog open={addingToDayIndex !== null} onOpenChange={(open) => { if (!open) setAddingToDayIndex(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Activity</DialogTitle>
+            <DialogDescription>Add a custom activity to Day {addingToDayIndex !== null ? addingToDayIndex + 1 : ''}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title <span className="text-destructive">*</span></Label>
+              <Input
+                value={newActivity.title}
+                onChange={(e) => setNewActivity({ ...newActivity, title: e.target.value })}
+                placeholder="e.g. Visit the local market"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Time Slot</Label>
+                <Input
+                  value={newActivity.timeSlot}
+                  onChange={(e) => setNewActivity({ ...newActivity, timeSlot: e.target.value })}
+                  placeholder="e.g. 10:00 AM"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <Input
+                  value={newActivity.duration}
+                  onChange={(e) => setNewActivity({ ...newActivity, duration: e.target.value })}
+                  placeholder="e.g. 2 hours"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={newActivity.description}
+                onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
+                placeholder="What's this activity about?"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={newActivity.notes}
+                onChange={(e) => setNewActivity({ ...newActivity, notes: e.target.value })}
+                placeholder="Any reminders or tips..."
+                rows={2}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setAddingToDayIndex(null)}>Cancel</Button>
+              <Button className="flex-1" onClick={handleAddActivity} disabled={!newActivity.title}>
+                <Plus className="w-4 h-4 mr-1.5" />
+                Add Activity
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
