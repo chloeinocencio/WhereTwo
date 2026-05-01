@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { projectId } from '/utils/supabase/info';
 import logoImg from '../../assets/daily.png';
 import headerImg from '../../assets/header.jpg';
 import { Button } from './ui/button';
@@ -8,9 +8,26 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation, Info } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation, Info, Trash2, GripVertical } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ItineraryViewProps {
   session: any;
@@ -19,28 +36,19 @@ interface ItineraryViewProps {
 }
 
 const formatDescription = (description: string) => {
-  const sections = {
-    address: '',
-    hours: '',
-    price: '',
-    transit: '',
-    tips: '',
-    main: ''
-  };
-
+  const sections = { address: '', hours: '', price: '', transit: '', tips: '', main: '' };
   const lines = description.split('.').map(s => s.trim()).filter(Boolean);
   let mainText: string[] = [];
 
   lines.forEach(line => {
-    const lowerLine = line.toLowerCase();
-
-    if (lowerLine.includes('open') || lowerLine.includes('closes') || lowerLine.includes('am') || lowerLine.includes('pm') || lowerLine.includes('hours')) {
+    const l = line.toLowerCase();
+    if (l.includes('open') || l.includes('closes') || l.includes('am') || l.includes('pm') || l.includes('hours')) {
       sections.hours += (sections.hours ? '. ' : '') + line;
-    } else if (lowerLine.includes('¥') || lowerLine.includes('$') || lowerLine.includes('€') || lowerLine.includes('£') || lowerLine.includes('entry') || lowerLine.includes('admission') || lowerLine.includes('free')) {
+    } else if (l.includes('¥') || l.includes('$') || l.includes('€') || l.includes('£') || l.includes('entry') || l.includes('admission') || l.includes('free')) {
       sections.price += (sections.price ? '. ' : '') + line;
-    } else if (lowerLine.includes('walk') || lowerLine.includes('station') || lowerLine.includes('metro') || lowerLine.includes('subway') || lowerLine.includes('train') || lowerLine.includes('bus')) {
+    } else if (l.includes('walk') || l.includes('station') || l.includes('metro') || l.includes('subway') || l.includes('train') || l.includes('bus')) {
       sections.transit += (sections.transit ? '. ' : '') + line;
-    } else if (lowerLine.includes('reservation') || lowerLine.includes('book') || lowerLine.includes('wait') || lowerLine.includes('best') || lowerLine.includes('arrive') || lowerLine.includes('avoid')) {
+    } else if (l.includes('reservation') || l.includes('book') || l.includes('wait') || l.includes('best') || l.includes('arrive') || l.includes('avoid')) {
       sections.tips += (sections.tips ? '. ' : '') + line;
     } else {
       mainText.push(line);
@@ -48,9 +56,170 @@ const formatDescription = (description: string) => {
   });
 
   sections.main = mainText.join('. ');
-
   return sections;
 };
+
+interface SortableActivityProps {
+  activity: any;
+  dayIndex: number;
+  editingActivity: string | null;
+  editedActivity: any;
+  onEdit: (dayIndex: number, activityId: string) => void;
+  onDelete: (dayIndex: number, activityId: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onEditedChange: (updated: any) => void;
+}
+
+function SortableActivity({
+  activity,
+  dayIndex,
+  editingActivity,
+  editedActivity,
+  onEdit,
+  onDelete,
+  onSave,
+  onCancel,
+  onEditedChange,
+}: SortableActivityProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: activity.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  const isEditing = editingActivity === activity.id;
+
+  return (
+    <div ref={setNodeRef} style={style} className="border-2 border-border rounded-xl bg-card shadow-sm hover:border-primary/30 transition-colors">
+      {isEditing ? (
+        <div className="p-5 space-y-3">
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input
+              value={editedActivity.title}
+              onChange={(e) => onEditedChange({ ...editedActivity, title: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={editedActivity.description}
+              onChange={(e) => onEditedChange({ ...editedActivity, description: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Textarea
+              value={editedActivity.notes}
+              onChange={(e) => onEditedChange({ ...editedActivity, notes: e.target.value })}
+              placeholder="Add your notes here..."
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={onSave}>
+              <Check className="w-4 h-4 mr-1" />
+              Save
+            </Button>
+            <Button size="sm" variant="outline" onClick={onCancel}>
+              <X className="w-4 h-4 mr-1" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-5">
+          <div className="flex items-start gap-2 mb-3">
+            <button
+              {...attributes}
+              {...listeners}
+              className="mt-1 p-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
+              aria-label="Drag to reorder"
+            >
+              <GripVertical className="w-4 h-4" />
+            </button>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="border-2 font-semibold">{activity.timeSlot}</Badge>
+                <Badge className="bg-secondary text-white">{activity.type}</Badge>
+              </div>
+              <h4 className="font-bold text-lg text-foreground leading-tight">{activity.title}</h4>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onEdit(dayIndex, activity.id)}
+                className="hover:bg-primary/10 hover:text-primary"
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onDelete(dayIndex, activity.id)}
+                className="hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {(() => {
+            const formatted = formatDescription(activity.description);
+            return (
+              <div className="space-y-3 pl-6">
+                {formatted.main && (
+                  <p className="text-sm text-foreground/80 leading-relaxed">{formatted.main}</p>
+                )}
+                <div className="grid grid-cols-1 gap-2">
+                  {formatted.hours && (
+                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
+                      <Clock className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+                      <span>{formatted.hours}</span>
+                    </div>
+                  )}
+                  {formatted.price && (
+                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
+                      <DollarSign className="w-4 h-4 mt-0.5 flex-shrink-0 text-secondary" />
+                      <span>{formatted.price}</span>
+                    </div>
+                  )}
+                  {formatted.transit && (
+                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
+                      <Navigation className="w-4 h-4 mt-0.5 flex-shrink-0 text-accent" />
+                      <span>{formatted.transit}</span>
+                    </div>
+                  )}
+                  {formatted.tips && (
+                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-primary/5 p-2 rounded-md border border-primary/20">
+                      <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+                      <span>{formatted.tips}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-muted px-3 py-1 rounded-full text-xs font-medium text-foreground/70">
+                    {activity.duration}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {activity.notes && (
+            <div className="mt-3 ml-6 p-3 bg-primary/5 border-l-4 border-primary rounded-r text-sm text-foreground">
+              <strong className="text-primary">Notes:</strong> {activity.notes}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewProps) {
   const [itinerary, setItinerary] = useState<any>(null);
@@ -60,6 +229,11 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [editingActivity, setEditingActivity] = useState<string | null>(null);
   const [editedActivity, setEditedActivity] = useState<any>(null);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   useEffect(() => {
     fetchItinerary();
   }, [itineraryId]);
@@ -68,18 +242,10 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
+        { headers: { 'Authorization': `Bearer ${session.access_token}` } }
       );
-
       const data = await response.json();
-
-      if (response.ok) {
-        setItinerary(data.itinerary);
-      }
+      if (response.ok) setItinerary(data.itinerary);
     } catch (error) {
       console.error('Failed to fetch itinerary:', error);
     } finally {
@@ -87,9 +253,28 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     }
   };
 
+  const savePlan = async (updatedPlan: any[]) => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ plan: updatedPlan }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok) setItinerary(data.itinerary);
+    } catch (error) {
+      console.error('Failed to save plan:', error);
+    }
+  };
+
   const handleInviteCollaborator = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/invite`,
@@ -102,9 +287,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
           body: JSON.stringify({ username: inviteUsername }),
         }
       );
-
       const data = await response.json();
-
       if (response.ok) {
         setItinerary(data.itinerary);
         setInviteUsername('');
@@ -119,21 +302,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   };
 
   const handleEditActivity = (dayIndex: number, activityId: string) => {
-    const day = itinerary.plan[dayIndex];
-    const activity = day.activities.find((a: any) => a.id === activityId);
+    const activity = itinerary.plan[dayIndex].activities.find((a: any) => a.id === activityId);
     setEditedActivity({ ...activity, dayIndex });
     setEditingActivity(activityId);
   };
 
   const handleSaveActivity = async () => {
     if (!editedActivity) return;
-
     const updatedPlan = [...itinerary.plan];
     const dayIndex = editedActivity.dayIndex;
-    const activityIndex = updatedPlan[dayIndex].activities.findIndex(
-      (a: any) => a.id === editedActivity.id
-    );
-
+    const activityIndex = updatedPlan[dayIndex].activities.findIndex((a: any) => a.id === editedActivity.id);
     updatedPlan[dayIndex].activities[activityIndex] = {
       id: editedActivity.id,
       timeSlot: editedActivity.timeSlot,
@@ -143,35 +321,41 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
       duration: editedActivity.duration,
       notes: editedActivity.notes,
     };
-
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ plan: updatedPlan }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setItinerary(data.itinerary);
-        setEditingActivity(null);
-        setEditedActivity(null);
-      }
-    } catch (error) {
-      console.error('Failed to update activity:', error);
-    }
-  };
-
-  const handleCancelEdit = () => {
+    await savePlan(updatedPlan);
     setEditingActivity(null);
     setEditedActivity(null);
+  };
+
+  const handleDeleteActivity = async (dayIndex: number, activityId: string) => {
+    if (!confirm('Remove this activity from your itinerary?')) return;
+    const updatedPlan = itinerary.plan.map((day: any, i: number) => {
+      if (i !== dayIndex) return day;
+      return { ...day, activities: day.activities.filter((a: any) => a.id !== activityId) };
+    });
+    setItinerary({ ...itinerary, plan: updatedPlan });
+    await savePlan(updatedPlan);
+  };
+
+  const handleDeleteDay = async (dayIndex: number) => {
+    if (!confirm('Remove this entire day from your itinerary?')) return;
+    const filtered = itinerary.plan.filter((_: any, i: number) => i !== dayIndex);
+    const renumbered = filtered.map((day: any, i: number) => ({ ...day, day: i + 1 }));
+    setItinerary({ ...itinerary, plan: renumbered });
+    await savePlan(renumbered);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent, dayIndex: number) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const activities = itinerary.plan[dayIndex].activities;
+    const oldIndex = activities.findIndex((a: any) => a.id === active.id);
+    const newIndex = activities.findIndex((a: any) => a.id === over.id);
+    const reordered = arrayMove(activities, oldIndex, newIndex);
+    const updatedPlan = itinerary.plan.map((day: any, i: number) =>
+      i !== dayIndex ? day : { ...day, activities: reordered }
+    );
+    setItinerary({ ...itinerary, plan: updatedPlan });
+    await savePlan(updatedPlan);
   };
 
   if (loading) {
@@ -225,9 +409,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                   </div>
                 </div>
                 {itinerary.base && (
-                  <div className="mt-1.5 text-xs text-white/70">
-                    Staying in {itinerary.base}
-                  </div>
+                  <div className="mt-1.5 text-xs text-white/70">Staying in {itinerary.base}</div>
                 )}
               </div>
             </div>
@@ -242,9 +424,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Invite Collaborator</DialogTitle>
-                    <DialogDescription>
-                      Enter the username of the person you want to invite.
-                    </DialogDescription>
+                    <DialogDescription>Enter the username of the person you want to invite.</DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleInviteCollaborator} className="space-y-4">
                     <div className="space-y-2">
@@ -293,125 +473,50 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
           {itinerary.plan.map((day: any, dayIndex: number) => (
             <Card key={day.day} className="border-2 shadow-md hover:shadow-lg transition-shadow">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
-                <CardTitle className="text-2xl font-bold text-foreground">Day {day.day}</CardTitle>
-                <CardDescription className="text-base mt-1">{day.date}</CardDescription>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-2xl font-bold text-foreground">Day {day.day}</CardTitle>
+                    <CardDescription className="text-base mt-1">{day.date}</CardDescription>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteDay(dayIndex)}
+                    className="hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Remove Day
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {day.activities.map((activity: any) => (
-                    <div key={activity.id} className="border-2 border-border rounded-xl p-5 hover:border-primary/30 transition-colors bg-card shadow-sm">
-                      {editingActivity === activity.id ? (
-                        <div className="space-y-3">
-                          <div className="space-y-2">
-                            <Label>Title</Label>
-                            <Input
-                              value={editedActivity.title}
-                              onChange={(e) => setEditedActivity({ ...editedActivity, title: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Description</Label>
-                            <Textarea
-                              value={editedActivity.description}
-                              onChange={(e) => setEditedActivity({ ...editedActivity, description: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Notes</Label>
-                            <Textarea
-                              value={editedActivity.notes}
-                              onChange={(e) => setEditedActivity({ ...editedActivity, notes: e.target.value })}
-                              placeholder="Add your notes here..."
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSaveActivity}>
-                              <Check className="w-4 h-4 mr-1" />
-                              Save
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                              <X className="w-4 h-4 mr-1" />
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="border-2 font-semibold">{activity.timeSlot}</Badge>
-                                <Badge className="bg-secondary text-white">{activity.type}</Badge>
-                              </div>
-                              <h4 className="font-bold text-lg text-foreground leading-tight">{activity.title}</h4>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEditActivity(dayIndex, activity.id)}
-                              className="hover:bg-primary/10 hover:text-primary"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          {(() => {
-                            const formatted = formatDescription(activity.description);
-                            return (
-                              <div className="space-y-3">
-                                {formatted.main && (
-                                  <p className="text-sm text-foreground/80 leading-relaxed">
-                                    {formatted.main}
-                                  </p>
-                                )}
-
-                                <div className="grid grid-cols-1 gap-2">
-                                  {formatted.hours && (
-                                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
-                                      <Clock className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
-                                      <span>{formatted.hours}</span>
-                                    </div>
-                                  )}
-
-                                  {formatted.price && (
-                                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
-                                      <DollarSign className="w-4 h-4 mt-0.5 flex-shrink-0 text-secondary" />
-                                      <span>{formatted.price}</span>
-                                    </div>
-                                  )}
-
-                                  {formatted.transit && (
-                                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
-                                      <Navigation className="w-4 h-4 mt-0.5 flex-shrink-0 text-accent" />
-                                      <span>{formatted.transit}</span>
-                                    </div>
-                                  )}
-
-                                  {formatted.tips && (
-                                    <div className="flex items-start gap-2 text-xs text-foreground/70 bg-primary/5 p-2 rounded-md border border-primary/20">
-                                      <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
-                                      <span>{formatted.tips}</span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <div className="bg-muted px-3 py-1 rounded-full text-xs font-medium text-foreground/70">
-                                    {activity.duration}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {activity.notes && (
-                            <div className="mt-3 p-3 bg-primary/5 border-l-4 border-primary rounded-r text-sm text-foreground">
-                              <strong className="text-primary">Notes:</strong> {activity.notes}
-                            </div>
-                          )}
-                        </>
-                      )}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => handleDragEnd(event, dayIndex)}
+                >
+                  <SortableContext
+                    items={day.activities.map((a: any) => a.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-4">
+                      {day.activities.map((activity: any) => (
+                        <SortableActivity
+                          key={activity.id}
+                          activity={activity}
+                          dayIndex={dayIndex}
+                          editingActivity={editingActivity}
+                          editedActivity={editedActivity}
+                          onEdit={handleEditActivity}
+                          onDelete={handleDeleteActivity}
+                          onSave={handleSaveActivity}
+                          onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
+                          onEditedChange={setEditedActivity}
+                        />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               </CardContent>
             </Card>
           ))}
