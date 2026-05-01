@@ -625,6 +625,33 @@ app.post("/make-server-9b7ec865/itineraries/:id/invite", async (c) => {
   }
 });
 
+app.post("/make-server-9b7ec865/itineraries/:id/leave", async (c) => {
+  try {
+    const user = await getAuthUser(c.req.header('Authorization'));
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    const itineraryId = c.req.param('id');
+    const itinerary = await kv.get(`itinerary:${itineraryId}`);
+
+    if (!itinerary) return c.json({ error: "Itinerary not found" }, 404);
+    if (itinerary.ownerId === user.id) return c.json({ error: "Owner cannot leave their own itinerary" }, 400);
+
+    const isCollaborator = itinerary.collaborators.some((c: any) => c.userId === user.id);
+    if (!isCollaborator) return c.json({ error: "You are not a collaborator on this itinerary" }, 400);
+
+    itinerary.collaborators = itinerary.collaborators.filter((c: any) => c.userId !== user.id);
+    itinerary.updatedAt = new Date().toISOString();
+
+    await kv.set(`itinerary:${itineraryId}`, itinerary);
+    await kv.del(`user:${user.id}:itinerary:${itineraryId}`);
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Leave itinerary error: ${error}`);
+    return c.json({ error: "Failed to leave itinerary" }, 500);
+  }
+});
+
 app.post("/make-server-9b7ec865/itineraries/:id/generate", async (c) => {
   try {
     const user = await getAuthUser(c.req.header('Authorization'));

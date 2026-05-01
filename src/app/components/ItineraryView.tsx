@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, Banknote, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, UserPlus, LogOut, Edit2, Check, X, Clock, Banknote, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import {
@@ -390,6 +390,23 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     await savePlan(renumbered);
   };
 
+  const handleLeaveItinerary = async () => {
+    if (!confirm('Leave this itinerary? You will lose access unless re-invited.')) return;
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/leave`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+      );
+      if (response.ok) onBack();
+      else {
+        const data = await response.json();
+        alert(data.error || 'Failed to leave itinerary');
+      }
+    } catch {
+      alert('Failed to leave itinerary');
+    }
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     const id = String(event.active.id);
     for (const day of itinerary.plan) {
@@ -498,6 +515,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 )}
               </div>
             </div>
+            {!isOwner && (
+              <Button
+                variant="ghost"
+                onClick={handleLeaveItinerary}
+                className="bg-white/10 hover:bg-red-500/30 text-white border border-white/20 hover:border-red-400/50 shadow-md"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Leave Trip
+              </Button>
+            )}
             {isOwner && (
               <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
                 <DialogTrigger asChild>
