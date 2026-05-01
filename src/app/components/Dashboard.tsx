@@ -42,348 +42,6 @@ const PACE_OPTIONS = [
   },
 ];
 
-const POPULAR_DESTINATIONS = [
-  // East Asia
-  { city: 'Tokyo', country: 'Japan', full: 'Tokyo, Japan' },
-  { city: 'Kyoto', country: 'Japan', full: 'Kyoto, Japan' },
-  { city: 'Osaka', country: 'Japan', full: 'Osaka, Japan' },
-  { city: 'Hiroshima', country: 'Japan', full: 'Hiroshima, Japan' },
-  { city: 'Nara', country: 'Japan', full: 'Nara, Japan' },
-  { city: 'Sapporo', country: 'Japan', full: 'Sapporo, Japan' },
-  { city: 'Fukuoka', country: 'Japan', full: 'Fukuoka, Japan' },
-  { city: 'Seoul', country: 'South Korea', full: 'Seoul, South Korea' },
-  { city: 'Busan', country: 'South Korea', full: 'Busan, South Korea' },
-  { city: 'Jeju', country: 'South Korea', full: 'Jeju, South Korea' },
-  { city: 'Beijing', country: 'China', full: 'Beijing, China' },
-  { city: 'Shanghai', country: 'China', full: 'Shanghai, China' },
-  { city: 'Guangzhou', country: 'China', full: 'Guangzhou, China' },
-  { city: 'Shenzhen', country: 'China', full: 'Shenzhen, China' },
-  { city: 'Chengdu', country: 'China', full: 'Chengdu, China' },
-  { city: "Xi'an", country: 'China', full: "Xi'an, China" },
-  { city: 'Hangzhou', country: 'China', full: 'Hangzhou, China' },
-  { city: 'Guilin', country: 'China', full: 'Guilin, China' },
-  { city: 'Hong Kong', country: 'China', full: 'Hong Kong, China' },
-  { city: 'Macau', country: 'China', full: 'Macau, China' },
-  { city: 'Taipei', country: 'Taiwan', full: 'Taipei, Taiwan' },
-  { city: 'Tainan', country: 'Taiwan', full: 'Tainan, Taiwan' },
-  { city: 'Ulaanbaatar', country: 'Mongolia', full: 'Ulaanbaatar, Mongolia' },
-  // Southeast Asia
-  { city: 'Singapore', country: 'Singapore', full: 'Singapore' },
-  { city: 'Bangkok', country: 'Thailand', full: 'Bangkok, Thailand' },
-  { city: 'Chiang Mai', country: 'Thailand', full: 'Chiang Mai, Thailand' },
-  { city: 'Phuket', country: 'Thailand', full: 'Phuket, Thailand' },
-  { city: 'Krabi', country: 'Thailand', full: 'Krabi, Thailand' },
-  { city: 'Koh Samui', country: 'Thailand', full: 'Koh Samui, Thailand' },
-  { city: 'Hanoi', country: 'Vietnam', full: 'Hanoi, Vietnam' },
-  { city: 'Ho Chi Minh City', country: 'Vietnam', full: 'Ho Chi Minh City, Vietnam' },
-  { city: 'Hoi An', country: 'Vietnam', full: 'Hoi An, Vietnam' },
-  { city: 'Da Nang', country: 'Vietnam', full: 'Da Nang, Vietnam' },
-  { city: 'Nha Trang', country: 'Vietnam', full: 'Nha Trang, Vietnam' },
-  { city: 'Ha Long Bay', country: 'Vietnam', full: 'Ha Long Bay, Vietnam' },
-  { city: 'Kuala Lumpur', country: 'Malaysia', full: 'Kuala Lumpur, Malaysia' },
-  { city: 'Penang', country: 'Malaysia', full: 'Penang, Malaysia' },
-  { city: 'Langkawi', country: 'Malaysia', full: 'Langkawi, Malaysia' },
-  { city: 'Kota Kinabalu', country: 'Malaysia', full: 'Kota Kinabalu, Malaysia' },
-  { city: 'Bali', country: 'Indonesia', full: 'Bali, Indonesia' },
-  { city: 'Jakarta', country: 'Indonesia', full: 'Jakarta, Indonesia' },
-  { city: 'Yogyakarta', country: 'Indonesia', full: 'Yogyakarta, Indonesia' },
-  { city: 'Lombok', country: 'Indonesia', full: 'Lombok, Indonesia' },
-  { city: 'Komodo', country: 'Indonesia', full: 'Komodo, Indonesia' },
-  { city: 'Manila', country: 'Philippines', full: 'Manila, Philippines' },
-  { city: 'Cebu', country: 'Philippines', full: 'Cebu, Philippines' },
-  { city: 'Boracay', country: 'Philippines', full: 'Boracay, Philippines' },
-  { city: 'Palawan', country: 'Philippines', full: 'Palawan, Philippines' },
-  { city: 'Siem Reap', country: 'Cambodia', full: 'Siem Reap, Cambodia' },
-  { city: 'Phnom Penh', country: 'Cambodia', full: 'Phnom Penh, Cambodia' },
-  { city: 'Luang Prabang', country: 'Laos', full: 'Luang Prabang, Laos' },
-  { city: 'Vientiane', country: 'Laos', full: 'Vientiane, Laos' },
-  { city: 'Yangon', country: 'Myanmar', full: 'Yangon, Myanmar' },
-  { city: 'Mandalay', country: 'Myanmar', full: 'Mandalay, Myanmar' },
-  { city: 'Bagan', country: 'Myanmar', full: 'Bagan, Myanmar' },
-  { city: 'Brunei', country: 'Brunei', full: 'Bandar Seri Begawan, Brunei' },
-  // South Asia
-  { city: 'Mumbai', country: 'India', full: 'Mumbai, India' },
-  { city: 'Delhi', country: 'India', full: 'Delhi, India' },
-  { city: 'Jaipur', country: 'India', full: 'Jaipur, India' },
-  { city: 'Agra', country: 'India', full: 'Agra, India' },
-  { city: 'Goa', country: 'India', full: 'Goa, India' },
-  { city: 'Bangalore', country: 'India', full: 'Bangalore, India' },
-  { city: 'Chennai', country: 'India', full: 'Chennai, India' },
-  { city: 'Kolkata', country: 'India', full: 'Kolkata, India' },
-  { city: 'Hyderabad', country: 'India', full: 'Hyderabad, India' },
-  { city: 'Udaipur', country: 'India', full: 'Udaipur, India' },
-  { city: 'Varanasi', country: 'India', full: 'Varanasi, India' },
-  { city: 'Kochi', country: 'India', full: 'Kochi, India' },
-  { city: 'Amritsar', country: 'India', full: 'Amritsar, India' },
-  { city: 'Kathmandu', country: 'Nepal', full: 'Kathmandu, Nepal' },
-  { city: 'Pokhara', country: 'Nepal', full: 'Pokhara, Nepal' },
-  { city: 'Colombo', country: 'Sri Lanka', full: 'Colombo, Sri Lanka' },
-  { city: 'Kandy', country: 'Sri Lanka', full: 'Kandy, Sri Lanka' },
-  { city: 'Dhaka', country: 'Bangladesh', full: 'Dhaka, Bangladesh' },
-  { city: 'Lahore', country: 'Pakistan', full: 'Lahore, Pakistan' },
-  { city: 'Karachi', country: 'Pakistan', full: 'Karachi, Pakistan' },
-  { city: 'Islamabad', country: 'Pakistan', full: 'Islamabad, Pakistan' },
-  { city: 'Male', country: 'Maldives', full: 'Maldives' },
-  // Central Asia & Caucasus
-  { city: 'Tbilisi', country: 'Georgia', full: 'Tbilisi, Georgia' },
-  { city: 'Yerevan', country: 'Armenia', full: 'Yerevan, Armenia' },
-  { city: 'Baku', country: 'Azerbaijan', full: 'Baku, Azerbaijan' },
-  { city: 'Almaty', country: 'Kazakhstan', full: 'Almaty, Kazakhstan' },
-  { city: 'Tashkent', country: 'Uzbekistan', full: 'Tashkent, Uzbekistan' },
-  { city: 'Samarkand', country: 'Uzbekistan', full: 'Samarkand, Uzbekistan' },
-  { city: 'Bukhara', country: 'Uzbekistan', full: 'Bukhara, Uzbekistan' },
-  // Middle East
-  { city: 'Dubai', country: 'UAE', full: 'Dubai, UAE' },
-  { city: 'Abu Dhabi', country: 'UAE', full: 'Abu Dhabi, UAE' },
-  { city: 'Doha', country: 'Qatar', full: 'Doha, Qatar' },
-  { city: 'Muscat', country: 'Oman', full: 'Muscat, Oman' },
-  { city: 'Riyadh', country: 'Saudi Arabia', full: 'Riyadh, Saudi Arabia' },
-  { city: 'Jeddah', country: 'Saudi Arabia', full: 'Jeddah, Saudi Arabia' },
-  { city: 'Kuwait City', country: 'Kuwait', full: 'Kuwait City, Kuwait' },
-  { city: 'Manama', country: 'Bahrain', full: 'Manama, Bahrain' },
-  { city: 'Amman', country: 'Jordan', full: 'Amman, Jordan' },
-  { city: 'Petra', country: 'Jordan', full: 'Petra, Jordan' },
-  { city: 'Beirut', country: 'Lebanon', full: 'Beirut, Lebanon' },
-  { city: 'Jerusalem', country: 'Israel', full: 'Jerusalem, Israel' },
-  { city: 'Tel Aviv', country: 'Israel', full: 'Tel Aviv, Israel' },
-  { city: 'Istanbul', country: 'Turkey', full: 'Istanbul, Turkey' },
-  { city: 'Cappadocia', country: 'Turkey', full: 'Cappadocia, Turkey' },
-  { city: 'Antalya', country: 'Turkey', full: 'Antalya, Turkey' },
-  { city: 'Bodrum', country: 'Turkey', full: 'Bodrum, Turkey' },
-  { city: 'Nicosia', country: 'Cyprus', full: 'Nicosia, Cyprus' },
-  { city: 'Paphos', country: 'Cyprus', full: 'Paphos, Cyprus' },
-  // Africa
-  { city: 'Cairo', country: 'Egypt', full: 'Cairo, Egypt' },
-  { city: 'Luxor', country: 'Egypt', full: 'Luxor, Egypt' },
-  { city: 'Aswan', country: 'Egypt', full: 'Aswan, Egypt' },
-  { city: 'Alexandria', country: 'Egypt', full: 'Alexandria, Egypt' },
-  { city: 'Marrakech', country: 'Morocco', full: 'Marrakech, Morocco' },
-  { city: 'Fez', country: 'Morocco', full: 'Fez, Morocco' },
-  { city: 'Casablanca', country: 'Morocco', full: 'Casablanca, Morocco' },
-  { city: 'Tangier', country: 'Morocco', full: 'Tangier, Morocco' },
-  { city: 'Tunis', country: 'Tunisia', full: 'Tunis, Tunisia' },
-  { city: 'Cape Town', country: 'South Africa', full: 'Cape Town, South Africa' },
-  { city: 'Johannesburg', country: 'South Africa', full: 'Johannesburg, South Africa' },
-  { city: 'Durban', country: 'South Africa', full: 'Durban, South Africa' },
-  { city: 'Nairobi', country: 'Kenya', full: 'Nairobi, Kenya' },
-  { city: 'Mombasa', country: 'Kenya', full: 'Mombasa, Kenya' },
-  { city: 'Zanzibar', country: 'Tanzania', full: 'Zanzibar, Tanzania' },
-  { city: 'Dar es Salaam', country: 'Tanzania', full: 'Dar es Salaam, Tanzania' },
-  { city: 'Serengeti', country: 'Tanzania', full: 'Serengeti, Tanzania' },
-  { city: 'Addis Ababa', country: 'Ethiopia', full: 'Addis Ababa, Ethiopia' },
-  { city: 'Accra', country: 'Ghana', full: 'Accra, Ghana' },
-  { city: 'Lagos', country: 'Nigeria', full: 'Lagos, Nigeria' },
-  { city: 'Abuja', country: 'Nigeria', full: 'Abuja, Nigeria' },
-  { city: 'Dakar', country: 'Senegal', full: 'Dakar, Senegal' },
-  { city: 'Windhoek', country: 'Namibia', full: 'Windhoek, Namibia' },
-  { city: 'Victoria Falls', country: 'Zimbabwe', full: 'Victoria Falls, Zimbabwe' },
-  { city: 'Harare', country: 'Zimbabwe', full: 'Harare, Zimbabwe' },
-  { city: 'Gaborone', country: 'Botswana', full: 'Gaborone, Botswana' },
-  { city: 'Port Louis', country: 'Mauritius', full: 'Port Louis, Mauritius' },
-  { city: 'Victoria', country: 'Seychelles', full: 'Victoria, Seychelles' },
-  { city: 'Antananarivo', country: 'Madagascar', full: 'Antananarivo, Madagascar' },
-  // Western Europe
-  { city: 'Paris', country: 'France', full: 'Paris, France' },
-  { city: 'Nice', country: 'France', full: 'Nice, France' },
-  { city: 'Lyon', country: 'France', full: 'Lyon, France' },
-  { city: 'Bordeaux', country: 'France', full: 'Bordeaux, France' },
-  { city: 'Marseille', country: 'France', full: 'Marseille, France' },
-  { city: 'Strasbourg', country: 'France', full: 'Strasbourg, France' },
-  { city: 'Toulouse', country: 'France', full: 'Toulouse, France' },
-  { city: 'Cannes', country: 'France', full: 'Cannes, France' },
-  { city: 'Monaco', country: 'Monaco', full: 'Monaco' },
-  { city: 'London', country: 'United Kingdom', full: 'London, United Kingdom' },
-  { city: 'Edinburgh', country: 'United Kingdom', full: 'Edinburgh, United Kingdom' },
-  { city: 'Manchester', country: 'United Kingdom', full: 'Manchester, United Kingdom' },
-  { city: 'Liverpool', country: 'United Kingdom', full: 'Liverpool, United Kingdom' },
-  { city: 'Bath', country: 'United Kingdom', full: 'Bath, United Kingdom' },
-  { city: 'Oxford', country: 'United Kingdom', full: 'Oxford, United Kingdom' },
-  { city: 'Cambridge', country: 'United Kingdom', full: 'Cambridge, United Kingdom' },
-  { city: 'Dublin', country: 'Ireland', full: 'Dublin, Ireland' },
-  { city: 'Galway', country: 'Ireland', full: 'Galway, Ireland' },
-  { city: 'Amsterdam', country: 'Netherlands', full: 'Amsterdam, Netherlands' },
-  { city: 'Rotterdam', country: 'Netherlands', full: 'Rotterdam, Netherlands' },
-  { city: 'The Hague', country: 'Netherlands', full: 'The Hague, Netherlands' },
-  { city: 'Brussels', country: 'Belgium', full: 'Brussels, Belgium' },
-  { city: 'Bruges', country: 'Belgium', full: 'Bruges, Belgium' },
-  { city: 'Ghent', country: 'Belgium', full: 'Ghent, Belgium' },
-  { city: 'Antwerp', country: 'Belgium', full: 'Antwerp, Belgium' },
-  { city: 'Zurich', country: 'Switzerland', full: 'Zurich, Switzerland' },
-  { city: 'Geneva', country: 'Switzerland', full: 'Geneva, Switzerland' },
-  { city: 'Bern', country: 'Switzerland', full: 'Bern, Switzerland' },
-  { city: 'Interlaken', country: 'Switzerland', full: 'Interlaken, Switzerland' },
-  { city: 'Lucerne', country: 'Switzerland', full: 'Lucerne, Switzerland' },
-  { city: 'Vienna', country: 'Austria', full: 'Vienna, Austria' },
-  { city: 'Salzburg', country: 'Austria', full: 'Salzburg, Austria' },
-  { city: 'Innsbruck', country: 'Austria', full: 'Innsbruck, Austria' },
-  { city: 'Berlin', country: 'Germany', full: 'Berlin, Germany' },
-  { city: 'Munich', country: 'Germany', full: 'Munich, Germany' },
-  { city: 'Hamburg', country: 'Germany', full: 'Hamburg, Germany' },
-  { city: 'Frankfurt', country: 'Germany', full: 'Frankfurt, Germany' },
-  { city: 'Cologne', country: 'Germany', full: 'Cologne, Germany' },
-  { city: 'Dresden', country: 'Germany', full: 'Dresden, Germany' },
-  { city: 'Heidelberg', country: 'Germany', full: 'Heidelberg, Germany' },
-  { city: 'Rothenburg', country: 'Germany', full: 'Rothenburg, Germany' },
-  { city: 'Lisbon', country: 'Portugal', full: 'Lisbon, Portugal' },
-  { city: 'Porto', country: 'Portugal', full: 'Porto, Portugal' },
-  { city: 'Algarve', country: 'Portugal', full: 'Algarve, Portugal' },
-  { city: 'Madeira', country: 'Portugal', full: 'Madeira, Portugal' },
-  { city: 'Madrid', country: 'Spain', full: 'Madrid, Spain' },
-  { city: 'Barcelona', country: 'Spain', full: 'Barcelona, Spain' },
-  { city: 'Seville', country: 'Spain', full: 'Seville, Spain' },
-  { city: 'Valencia', country: 'Spain', full: 'Valencia, Spain' },
-  { city: 'Bilbao', country: 'Spain', full: 'Bilbao, Spain' },
-  { city: 'San Sebastian', country: 'Spain', full: 'San Sebastian, Spain' },
-  { city: 'Granada', country: 'Spain', full: 'Granada, Spain' },
-  { city: 'Palma', country: 'Spain', full: 'Palma, Mallorca, Spain' },
-  { city: 'Ibiza', country: 'Spain', full: 'Ibiza, Spain' },
-  { city: 'Tenerife', country: 'Spain', full: 'Tenerife, Spain' },
-  // Southern Europe
-  { city: 'Rome', country: 'Italy', full: 'Rome, Italy' },
-  { city: 'Florence', country: 'Italy', full: 'Florence, Italy' },
-  { city: 'Venice', country: 'Italy', full: 'Venice, Italy' },
-  { city: 'Milan', country: 'Italy', full: 'Milan, Italy' },
-  { city: 'Naples', country: 'Italy', full: 'Naples, Italy' },
-  { city: 'Amalfi Coast', country: 'Italy', full: 'Amalfi Coast, Italy' },
-  { city: 'Cinque Terre', country: 'Italy', full: 'Cinque Terre, Italy' },
-  { city: 'Tuscany', country: 'Italy', full: 'Tuscany, Italy' },
-  { city: 'Sicily', country: 'Italy', full: 'Sicily, Italy' },
-  { city: 'Sardinia', country: 'Italy', full: 'Sardinia, Italy' },
-  { city: 'Bologna', country: 'Italy', full: 'Bologna, Italy' },
-  { city: 'Verona', country: 'Italy', full: 'Verona, Italy' },
-  { city: 'Turin', country: 'Italy', full: 'Turin, Italy' },
-  { city: 'Athens', country: 'Greece', full: 'Athens, Greece' },
-  { city: 'Santorini', country: 'Greece', full: 'Santorini, Greece' },
-  { city: 'Mykonos', country: 'Greece', full: 'Mykonos, Greece' },
-  { city: 'Crete', country: 'Greece', full: 'Crete, Greece' },
-  { city: 'Rhodes', country: 'Greece', full: 'Rhodes, Greece' },
-  { city: 'Corfu', country: 'Greece', full: 'Corfu, Greece' },
-  { city: 'Thessaloniki', country: 'Greece', full: 'Thessaloniki, Greece' },
-  { city: 'Dubrovnik', country: 'Croatia', full: 'Dubrovnik, Croatia' },
-  { city: 'Split', country: 'Croatia', full: 'Split, Croatia' },
-  { city: 'Zagreb', country: 'Croatia', full: 'Zagreb, Croatia' },
-  { city: 'Hvar', country: 'Croatia', full: 'Hvar, Croatia' },
-  { city: 'Ljubljana', country: 'Slovenia', full: 'Ljubljana, Slovenia' },
-  { city: 'Bled', country: 'Slovenia', full: 'Bled, Slovenia' },
-  { city: 'Sarajevo', country: 'Bosnia', full: 'Sarajevo, Bosnia and Herzegovina' },
-  { city: 'Kotor', country: 'Montenegro', full: 'Kotor, Montenegro' },
-  { city: 'Belgrade', country: 'Serbia', full: 'Belgrade, Serbia' },
-  { city: 'Sofia', country: 'Bulgaria', full: 'Sofia, Bulgaria' },
-  { city: 'Bucharest', country: 'Romania', full: 'Bucharest, Romania' },
-  { city: 'Valletta', country: 'Malta', full: 'Valletta, Malta' },
-  // Northern & Eastern Europe
-  { city: 'Copenhagen', country: 'Denmark', full: 'Copenhagen, Denmark' },
-  { city: 'Stockholm', country: 'Sweden', full: 'Stockholm, Sweden' },
-  { city: 'Oslo', country: 'Norway', full: 'Oslo, Norway' },
-  { city: 'Bergen', country: 'Norway', full: 'Bergen, Norway' },
-  { city: 'Helsinki', country: 'Finland', full: 'Helsinki, Finland' },
-  { city: 'Reykjavik', country: 'Iceland', full: 'Reykjavik, Iceland' },
-  { city: 'Tallinn', country: 'Estonia', full: 'Tallinn, Estonia' },
-  { city: 'Riga', country: 'Latvia', full: 'Riga, Latvia' },
-  { city: 'Vilnius', country: 'Lithuania', full: 'Vilnius, Lithuania' },
-  { city: 'Prague', country: 'Czech Republic', full: 'Prague, Czech Republic' },
-  { city: 'Budapest', country: 'Hungary', full: 'Budapest, Hungary' },
-  { city: 'Warsaw', country: 'Poland', full: 'Warsaw, Poland' },
-  { city: 'Krakow', country: 'Poland', full: 'Krakow, Poland' },
-  { city: 'Gdansk', country: 'Poland', full: 'Gdansk, Poland' },
-  { city: 'Bratislava', country: 'Slovakia', full: 'Bratislava, Slovakia' },
-  { city: 'Lviv', country: 'Ukraine', full: 'Lviv, Ukraine' },
-  { city: 'Kyiv', country: 'Ukraine', full: 'Kyiv, Ukraine' },
-  { city: 'Moscow', country: 'Russia', full: 'Moscow, Russia' },
-  { city: 'St. Petersburg', country: 'Russia', full: 'St. Petersburg, Russia' },
-  // North America
-  { city: 'New York', country: 'USA', full: 'New York, USA' },
-  { city: 'Los Angeles', country: 'USA', full: 'Los Angeles, USA' },
-  { city: 'Chicago', country: 'USA', full: 'Chicago, USA' },
-  { city: 'San Francisco', country: 'USA', full: 'San Francisco, USA' },
-  { city: 'Las Vegas', country: 'USA', full: 'Las Vegas, USA' },
-  { city: 'Miami', country: 'USA', full: 'Miami, USA' },
-  { city: 'Boston', country: 'USA', full: 'Boston, USA' },
-  { city: 'Seattle', country: 'USA', full: 'Seattle, USA' },
-  { city: 'Washington DC', country: 'USA', full: 'Washington DC, USA' },
-  { city: 'New Orleans', country: 'USA', full: 'New Orleans, USA' },
-  { city: 'Nashville', country: 'USA', full: 'Nashville, USA' },
-  { city: 'Austin', country: 'USA', full: 'Austin, USA' },
-  { city: 'Denver', country: 'USA', full: 'Denver, USA' },
-  { city: 'Portland', country: 'USA', full: 'Portland, USA' },
-  { city: 'San Diego', country: 'USA', full: 'San Diego, USA' },
-  { city: 'Honolulu', country: 'USA', full: 'Honolulu, USA' },
-  { city: 'Atlanta', country: 'USA', full: 'Atlanta, USA' },
-  { city: 'Philadelphia', country: 'USA', full: 'Philadelphia, USA' },
-  { city: 'Phoenix', country: 'USA', full: 'Phoenix, USA' },
-  { city: 'Salt Lake City', country: 'USA', full: 'Salt Lake City, USA' },
-  { city: 'Sedona', country: 'USA', full: 'Sedona, USA' },
-  { city: 'Grand Canyon', country: 'USA', full: 'Grand Canyon, USA' },
-  { city: 'Toronto', country: 'Canada', full: 'Toronto, Canada' },
-  { city: 'Vancouver', country: 'Canada', full: 'Vancouver, Canada' },
-  { city: 'Montreal', country: 'Canada', full: 'Montreal, Canada' },
-  { city: 'Quebec City', country: 'Canada', full: 'Quebec City, Canada' },
-  { city: 'Calgary', country: 'Canada', full: 'Calgary, Canada' },
-  { city: 'Ottawa', country: 'Canada', full: 'Ottawa, Canada' },
-  { city: 'Halifax', country: 'Canada', full: 'Halifax, Canada' },
-  { city: 'Banff', country: 'Canada', full: 'Banff, Canada' },
-  { city: 'Mexico City', country: 'Mexico', full: 'Mexico City, Mexico' },
-  { city: 'Cancun', country: 'Mexico', full: 'Cancun, Mexico' },
-  { city: 'Tulum', country: 'Mexico', full: 'Tulum, Mexico' },
-  { city: 'Playa del Carmen', country: 'Mexico', full: 'Playa del Carmen, Mexico' },
-  { city: 'Oaxaca', country: 'Mexico', full: 'Oaxaca, Mexico' },
-  { city: 'Guadalajara', country: 'Mexico', full: 'Guadalajara, Mexico' },
-  { city: 'San Miguel de Allende', country: 'Mexico', full: 'San Miguel de Allende, Mexico' },
-  { city: 'Merida', country: 'Mexico', full: 'Merida, Mexico' },
-  { city: 'Havana', country: 'Cuba', full: 'Havana, Cuba' },
-  { city: 'San José', country: 'Costa Rica', full: 'San José, Costa Rica' },
-  { city: 'Panama City', country: 'Panama', full: 'Panama City, Panama' },
-  { city: 'Guatemala City', country: 'Guatemala', full: 'Guatemala City, Guatemala' },
-  { city: 'Nassau', country: 'Bahamas', full: 'Nassau, Bahamas' },
-  { city: 'Kingston', country: 'Jamaica', full: 'Kingston, Jamaica' },
-  { city: 'Montego Bay', country: 'Jamaica', full: 'Montego Bay, Jamaica' },
-  { city: 'San Juan', country: 'Puerto Rico', full: 'San Juan, Puerto Rico' },
-  // South America
-  { city: 'Rio de Janeiro', country: 'Brazil', full: 'Rio de Janeiro, Brazil' },
-  { city: 'São Paulo', country: 'Brazil', full: 'São Paulo, Brazil' },
-  { city: 'Salvador', country: 'Brazil', full: 'Salvador, Brazil' },
-  { city: 'Florianópolis', country: 'Brazil', full: 'Florianópolis, Brazil' },
-  { city: 'Iguazu Falls', country: 'Brazil', full: 'Iguazu Falls, Brazil' },
-  { city: 'Manaus', country: 'Brazil', full: 'Manaus, Brazil' },
-  { city: 'Buenos Aires', country: 'Argentina', full: 'Buenos Aires, Argentina' },
-  { city: 'Patagonia', country: 'Argentina', full: 'Patagonia, Argentina' },
-  { city: 'Mendoza', country: 'Argentina', full: 'Mendoza, Argentina' },
-  { city: 'Santiago', country: 'Chile', full: 'Santiago, Chile' },
-  { city: 'Valparaíso', country: 'Chile', full: 'Valparaíso, Chile' },
-  { city: 'Easter Island', country: 'Chile', full: 'Easter Island, Chile' },
-  { city: 'Lima', country: 'Peru', full: 'Lima, Peru' },
-  { city: 'Cusco', country: 'Peru', full: 'Cusco, Peru' },
-  { city: 'Machu Picchu', country: 'Peru', full: 'Machu Picchu, Peru' },
-  { city: 'Bogotá', country: 'Colombia', full: 'Bogotá, Colombia' },
-  { city: 'Medellín', country: 'Colombia', full: 'Medellín, Colombia' },
-  { city: 'Cartagena', country: 'Colombia', full: 'Cartagena, Colombia' },
-  { city: 'Quito', country: 'Ecuador', full: 'Quito, Ecuador' },
-  { city: 'Galápagos', country: 'Ecuador', full: 'Galápagos, Ecuador' },
-  { city: 'La Paz', country: 'Bolivia', full: 'La Paz, Bolivia' },
-  { city: 'Montevideo', country: 'Uruguay', full: 'Montevideo, Uruguay' },
-  { city: 'Punta del Este', country: 'Uruguay', full: 'Punta del Este, Uruguay' },
-  { city: 'Caracas', country: 'Venezuela', full: 'Caracas, Venezuela' },
-  // Oceania
-  { city: 'Sydney', country: 'Australia', full: 'Sydney, Australia' },
-  { city: 'Melbourne', country: 'Australia', full: 'Melbourne, Australia' },
-  { city: 'Brisbane', country: 'Australia', full: 'Brisbane, Australia' },
-  { city: 'Perth', country: 'Australia', full: 'Perth, Australia' },
-  { city: 'Gold Coast', country: 'Australia', full: 'Gold Coast, Australia' },
-  { city: 'Cairns', country: 'Australia', full: 'Cairns, Australia' },
-  { city: 'Adelaide', country: 'Australia', full: 'Adelaide, Australia' },
-  { city: 'Hobart', country: 'Australia', full: 'Hobart, Australia' },
-  { city: 'Auckland', country: 'New Zealand', full: 'Auckland, New Zealand' },
-  { city: 'Wellington', country: 'New Zealand', full: 'Wellington, New Zealand' },
-  { city: 'Queenstown', country: 'New Zealand', full: 'Queenstown, New Zealand' },
-  { city: 'Christchurch', country: 'New Zealand', full: 'Christchurch, New Zealand' },
-  { city: 'Rotorua', country: 'New Zealand', full: 'Rotorua, New Zealand' },
-  { city: 'Fiji', country: 'Fiji', full: 'Nadi, Fiji' },
-  { city: 'Bora Bora', country: 'French Polynesia', full: 'Bora Bora, French Polynesia' },
-  { city: 'Tahiti', country: 'French Polynesia', full: 'Tahiti, French Polynesia' },
-  { city: 'Samoa', country: 'Samoa', full: 'Apia, Samoa' },
-  { city: 'Vanuatu', country: 'Vanuatu', full: 'Port Vila, Vanuatu' },
-  { city: 'Palau', country: 'Palau', full: 'Palau' },
-];
 
 interface DashboardProps {
   session: any;
@@ -410,8 +68,9 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     base: '',
     days: '3',
   });
-  const [locationSuggestions, setLocationSuggestions] = useState<typeof POPULAR_DESTINATIONS>([]);
+  const [locationSuggestions, setLocationSuggestions] = useState<{ city: string; country: string; full: string }[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [baseSuggestions, setBaseSuggestions] = useState<string[]>([]);
   const [showBaseSuggestions, setShowBaseSuggestions] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -419,6 +78,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedPace, setSelectedPace] = useState<'leisurely' | 'balanced' | 'immersive'>('balanced');
   const locationInputRef = useRef<HTMLInputElement>(null);
+  const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const baseInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -454,17 +114,45 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
   const handleLocationChange = (value: string) => {
     setNewItinerary({ ...newItinerary, location: value });
+    if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
 
-    if (value.length > 0) {
-      const filtered = POPULAR_DESTINATIONS.filter(dest =>
-        dest.full.toLowerCase().includes(value.toLowerCase()) ||
-        dest.city.toLowerCase().includes(value.toLowerCase())
-      );
-      setLocationSuggestions(filtered.slice(0, 5));
-      setShowLocationSuggestions(true);
-    } else {
+    if (value.length < 2) {
+      setLocationSuggestions([]);
       setShowLocationSuggestions(false);
+      setLocationLoading(false);
+      return;
     }
+
+    setLocationLoading(true);
+    locationDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&addressdetails=1&limit=7&featuretype=city`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        const seen = new Set<string>();
+        const suggestions = data
+          .map((r: any) => {
+            const city = r.address?.city || r.address?.town || r.address?.municipality || r.name;
+            const country = r.address?.country || '';
+            return { city, country, full: `${city}, ${country}` };
+          })
+          .filter((s: any) => {
+            if (!s.city) return false;
+            const key = `${s.city}|${s.country}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        setLocationSuggestions(suggestions);
+        setShowLocationSuggestions(suggestions.length > 0);
+      } catch {
+        setShowLocationSuggestions(false);
+      } finally {
+        setLocationLoading(false);
+      }
+    }, 300);
   };
 
   const handleLocationSelect = (location: string) => {
@@ -953,7 +641,12 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           placeholder="Type any city..."
                           className="text-base"
                         />
-                        {showLocationSuggestions && locationSuggestions.length > 0 && (
+                        {locationLoading && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-2.5 text-sm text-slate-500">
+                            Searching...
+                          </div>
+                        )}
+                        {!locationLoading && showLocationSuggestions && locationSuggestions.length > 0 && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
                             {locationSuggestions.map((dest, index) => (
                               <button
