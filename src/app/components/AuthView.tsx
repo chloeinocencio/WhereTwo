@@ -133,7 +133,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
       {/* Right panel */}
       <div className="relative z-10 w-[460px] flex items-center justify-center p-8">
-        <div className="w-full bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 space-y-5">
+        <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 space-y-5 shadow-2xl">
           <div>
             <h1 className="text-2xl font-bold text-white">
               {isSignUp ? 'Create account' : 'Welcome back'}
