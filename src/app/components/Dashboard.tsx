@@ -20,7 +20,7 @@ const ACTIVITY_INTERESTS = [
   { id: 'arts', label: 'Arts' },
   { id: 'shopping', label: 'Shopping' },
   { id: 'wellness', label: 'Self Care' },
-  { id: 'nightlife', label: 'Social' },
+  { id: 'nightlife', label: 'Nightlife' },
   { id: 'photography', label: 'Photo Ops' },
 ];
 
