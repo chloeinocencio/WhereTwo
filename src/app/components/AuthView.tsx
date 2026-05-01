@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { MapPin, Shuffle } from 'lucide-react';
 import headerImg from '../../assets/header.jpg';
-import logoImg from '../../assets/w-logo.png';
+import logoImg from '../../assets/daily.png';
 
 interface AuthViewProps {
   onLogin: (session: any) => void;
