@@ -854,7 +854,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center 30%' }}
       >
         <div className="absolute inset-0 bg-slate-900/70" />
-        <div className="relative z-10 max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 py-7 flex items-center justify-between">
           <img src={logoImg} alt="WhereTwo" className="h-12 w-auto drop-shadow-md" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1062,12 +1062,9 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-5">
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-base">What experiences interest you?</Label>
-                        <p className="text-xs text-slate-500 mt-1">Select all that apply — your itinerary will be tailored accordingly.</p>
-                      </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-base">What experiences interest you?</Label>
                       <div className="grid grid-cols-2 gap-2">
                         {ACTIVITY_INTERESTS.map((interest) => {
                           const selected = selectedInterests.includes(interest.id);
@@ -1076,7 +1073,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                               key={interest.id}
                               type="button"
                               onClick={() => toggleInterest(interest.id)}
-                              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all text-left ${
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all text-left ${
                                 selected
                                   ? 'border-primary bg-primary/5 text-primary'
                                   : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
@@ -1089,22 +1086,22 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <Label className="text-base">How would you like to pace your days?</Label>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {PACE_OPTIONS.map((option) => (
                           <button
                             key={option.id}
                             type="button"
                             onClick={() => setSelectedPace(option.id as 'leisurely' | 'balanced' | 'immersive')}
-                            className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                            className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
                               selectedPace === option.id
                                 ? 'border-primary bg-primary/5'
                                 : 'border-border hover:border-primary/40 hover:bg-muted/50'
                             }`}
                           >
                             <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>{option.label}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">{option.description}</div>
+                            <div className="text-xs text-muted-foreground">{option.description}</div>
                           </button>
                         ))}
                       </div>
