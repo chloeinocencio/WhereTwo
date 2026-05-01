@@ -125,10 +125,10 @@ export function AuthView({ onLogin }: AuthViewProps) {
           </h2>
           <p className="text-white/60 flex items-center justify-center gap-2 text-sm">
             <MapPin className="w-4 h-4 shrink-0" />
-            A collaborative travel itinerary dashboard — plan every day, together.
+            AI-powered itineraries
           </p>
         </div>
-        <p className="absolute bottom-10 text-white/40 text-sm">AI-powered itineraries</p>
+        <p className="absolute bottom-10 text-white/40 text-sm">© 2026 Chloe Inocencio. All rights reserved.</p>
       </div>
 
       {/* Right panel */}
