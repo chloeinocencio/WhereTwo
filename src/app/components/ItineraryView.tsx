@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, Banknote, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import {
@@ -184,7 +184,7 @@ function SortableActivity({
                   )}
                   {formatted.price && (
                     <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
-                      <DollarSign className="w-4 h-4 mt-0.5 flex-shrink-0 text-secondary" />
+                      <Banknote className="w-4 h-4 mt-0.5 flex-shrink-0 text-secondary" />
                       <span>{formatted.price}</span>
                     </div>
                   )}
