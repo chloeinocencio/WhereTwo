@@ -290,10 +290,6 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
         </Card>
 
         <div className="space-y-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-1 flex-1 bg-gradient-to-r from-primary to-accent rounded-full"></div>
-            <div className="h-1 flex-1 bg-gradient-to-l from-primary to-accent rounded-full"></div>
-          </div>
           {itinerary.plan.map((day: any, dayIndex: number) => (
             <Card key={day.day} className="border-2 shadow-md hover:shadow-lg transition-shadow">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
