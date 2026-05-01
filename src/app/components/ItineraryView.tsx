@@ -230,6 +230,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [editedActivity, setEditedActivity] = useState<any>(null);
   const [addingToDayIndex, setAddingToDayIndex] = useState<number | null>(null);
   const [newActivity, setNewActivity] = useState({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
+  const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
+  const [editedDayTitle, setEditedDayTitle] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -355,6 +357,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     setItinerary({ ...itinerary, plan: updatedPlan });
     setAddingToDayIndex(null);
     setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
+    await savePlan(updatedPlan);
+  };
+
+  const handleSaveDayTitle = async () => {
+    if (editingDayIndex === null) return;
+    const updatedPlan = itinerary.plan.map((day: any, i: number) =>
+      i !== editingDayIndex ? day : { ...day, title: editedDayTitle.trim() || `Day ${day.day}` }
+    );
+    setItinerary({ ...itinerary, plan: updatedPlan });
+    setEditingDayIndex(null);
     await savePlan(updatedPlan);
   };
 
@@ -496,22 +508,40 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
             <Card key={day.day} className="border-2 shadow-md hover:shadow-lg transition-shadow">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-2xl font-bold text-foreground">Day {day.day}</CardTitle>
+                  <div className="flex-1 mr-2">
+                    {editingDayIndex === dayIndex ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editedDayTitle}
+                          onChange={(e) => setEditedDayTitle(e.target.value)}
+                          className="text-xl font-bold h-9 max-w-xs"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveDayTitle();
+                            if (e.key === 'Escape') setEditingDayIndex(null);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" onClick={handleSaveDayTitle} className="hover:bg-primary/10 hover:text-primary">
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditingDayIndex(null)} className="hover:bg-muted">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <CardTitle className="text-2xl font-bold text-foreground">{day.title || `Day ${day.day}`}</CardTitle>
+                    )}
                     <CardDescription className="text-base mt-1">{day.date}</CardDescription>
                   </div>
                   <div className="flex gap-1">
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => {
-                        setAddingToDayIndex(dayIndex);
-                        setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
-                      }}
+                      onClick={() => { setEditingDayIndex(dayIndex); setEditedDayTitle(day.title || `Day ${day.day}`); }}
                       className="hover:bg-primary/10 hover:text-primary text-muted-foreground"
-                      title="Add activity"
+                      title="Edit day title"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button
                       size="icon"
@@ -553,6 +583,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                     </div>
                   </SortableContext>
                 </DndContext>
+                <button
+                  onClick={() => {
+                    setAddingToDayIndex(dayIndex);
+                    setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
+                  }}
+                  className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Activity
+                </button>
               </CardContent>
             </Card>
           ))}
