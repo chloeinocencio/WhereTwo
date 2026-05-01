@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
+import logoImg from '../../assets/logo.png';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -469,7 +470,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       <header className="bg-gradient-to-r from-primary via-primary/90 to-accent border-b border-white/10 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">WhereTwo</h1>
+            <img src={logoImg} alt="WhereTwo" className="h-9 w-auto drop-shadow-md" />
             <p className="text-sm text-white/80 mt-1">Welcome, @{userName}</p>
           </div>
           <DropdownMenu>

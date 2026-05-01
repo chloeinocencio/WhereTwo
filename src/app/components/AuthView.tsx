@@ -4,7 +4,9 @@ import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from './ui/card';
+import headerImg from '../../assets/header.jpg';
+import logoImg from '../../assets/logo.png';
 
 interface AuthViewProps {
   onLogin: (session: any) => void;
@@ -107,13 +109,15 @@ export function AuthView({ onLogin }: AuthViewProps) {
   };
 
   return (
-    <div className="size-full flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-      <Card className="w-full max-w-md shadow-2xl border-2">
-        <CardHeader className="text-center pb-8">
-          <CardTitle className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-            WhereTwo
-          </CardTitle>
-          <CardDescription className="text-base">
+    <div
+      className="size-full flex flex-col items-center justify-center p-4 relative"
+      style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+    >
+      <div className="absolute inset-0 bg-black/50" />
+      <img src={logoImg} alt="WhereTwo" className="relative z-10 w-72 mb-8 drop-shadow-2xl" />
+      <Card className="relative z-10 w-full max-w-md shadow-2xl border-0 bg-white/10 backdrop-blur-md text-white">
+        <CardHeader className="text-center pb-6">
+          <CardDescription className="text-white/80 text-base">
             {isSignUp ? 'Create an account to start planning' : 'Welcome back! Sign in to continue'}
           </CardDescription>
         </CardHeader>
@@ -121,7 +125,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username" className="text-white/90">Username</Label>
                 <div className="flex gap-2">
                   <Input
                     id="username"
@@ -130,17 +134,17 @@ export function AuthView({ onLogin }: AuthViewProps) {
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                     required
                     placeholder="wheretwo-user-0"
-                    className="flex-1"
+                    className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/50"
                   />
-                  <Button type="button" variant="outline" onClick={generateRandomUsername}>
+                  <Button type="button" variant="outline" onClick={generateRandomUsername} className="border-white/30 text-white hover:bg-white/20">
                     Random
                   </Button>
                 </div>
-                <p className="text-xs text-slate-500">Lowercase letters, numbers, and dashes only</p>
+                <p className="text-xs text-white/50">Lowercase letters, numbers, and dashes only</p>
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-white/90">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -148,10 +152,11 @@ export function AuthView({ onLogin }: AuthViewProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
+                className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-white/90">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -159,12 +164,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
+                className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
               />
             </div>
             {error && (
-              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20">{error}</div>
+              <div className="text-sm text-white bg-white/20 p-3 rounded-lg border border-white/30">{error}</div>
             )}
-            <Button type="submit" className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all" disabled={loading}>
+            <Button type="submit" className="w-full h-11 text-base font-semibold bg-white text-black hover:bg-white/90 shadow-md transition-all" disabled={loading}>
               {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
             </Button>
           </form>
@@ -175,7 +181,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                 setIsSignUp(!isSignUp);
                 setError('');
               }}
-              className="text-sm text-primary hover:text-accent font-medium transition-colors"
+              className="text-sm text-white/80 hover:text-white font-medium transition-colors"
             >
               {isSignUp ? 'Already have an account? Sign in →' : "Don't have an account? Sign up →"}
             </button>

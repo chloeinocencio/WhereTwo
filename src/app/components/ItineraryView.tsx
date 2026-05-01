@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
+import logoImg from '../../assets/logo.png';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
