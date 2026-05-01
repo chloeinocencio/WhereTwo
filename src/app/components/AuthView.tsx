@@ -117,8 +117,8 @@ export function AuthView({ onLogin }: AuthViewProps) {
       <div className="absolute inset-0 bg-slate-900/65" />
 
       {/* Left panel */}
-      <div className="relative z-10 flex-1 flex flex-col justify-between p-12 lg:p-16">
-        <img src={logoImg} alt="WhereTwo" className="h-12 w-auto" />
+      <div className="relative z-10 flex-1 flex flex-col justify-center p-12 lg:p-16 gap-6">
+        <img src={logoImg} alt="WhereTwo" className="h-28 w-auto" />
         <div className="space-y-3">
           <h2 className="text-4xl font-bold text-white leading-tight">
             Let's explore the world together
@@ -128,7 +128,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             Collaborative travel planning for every destination
           </p>
         </div>
-        <p className="text-white/40 text-sm">AI-powered itineraries</p>
+        <p className="absolute bottom-10 text-white/40 text-sm">AI-powered itineraries</p>
       </div>
 
       {/* Right panel */}
