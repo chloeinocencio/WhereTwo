@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import logoImg from '../../assets/logo.png';
+import headerImg from '../../assets/header.jpg';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -467,17 +468,18 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
   return (
     <div className="size-full">
-      <header className="bg-gradient-to-r from-primary via-primary/90 to-accent border-b border-white/10 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
-          <div>
-            <img src={logoImg} alt="WhereTwo" className="h-9 w-auto drop-shadow-md" />
-            <p className="text-sm text-white/80 mt-1">Welcome, @{userName}</p>
-          </div>
+      <header
+        className="relative border-b border-white/10 shadow-lg overflow-hidden"
+        style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center 30%' }}
+      >
+        <div className="absolute inset-0 bg-slate-900/70" />
+        <div className="relative z-10 max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+          <img src={logoImg} alt="WhereTwo" className="h-8 w-auto drop-shadow-md" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                <UserCircle className="w-5 h-5 mr-2" />
-                Account
+              <Button variant="ghost" className="text-white hover:bg-white/10 gap-2 border border-white/20 rounded-full px-4">
+                <UserCircle className="w-5 h-5" />
+                @{userName}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

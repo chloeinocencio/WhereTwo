@@ -4,7 +4,7 @@ import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent, CardDescription, CardHeader } from './ui/card';
+import { MapPin, Shuffle } from 'lucide-react';
 import headerImg from '../../assets/header.jpg';
 import logoImg from '../../assets/logo.png';
 
@@ -110,84 +110,116 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
   return (
     <div
-      className="size-full flex flex-col items-center justify-center p-4 relative"
+      className="size-full flex relative"
       style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
     >
-      <div className="absolute inset-0 bg-black/50" />
-      <img src={logoImg} alt="WhereTwo" className="relative z-10 w-72 mb-8 drop-shadow-2xl" />
-      <Card className="relative z-10 w-full max-w-md shadow-2xl border-0 bg-white/10 backdrop-blur-md text-white">
-        <CardHeader className="text-center pb-6">
-          <CardDescription className="text-white/80 text-base">
-            {isSignUp ? 'Create an account to start planning' : 'Welcome back! Sign in to continue'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-slate-900/65" />
+
+      {/* Left panel */}
+      <div className="relative z-10 flex-1 flex flex-col justify-between p-12 lg:p-16">
+        <img src={logoImg} alt="WhereTwo" className="h-12 w-auto" />
+        <div className="space-y-3">
+          <h2 className="text-4xl font-bold text-white leading-tight">
+            Let's explore the world together
+          </h2>
+          <p className="text-white/60 flex items-center gap-2 text-sm">
+            <MapPin className="w-4 h-4 shrink-0" />
+            Collaborative travel planning for every destination
+          </p>
+        </div>
+        <p className="text-white/40 text-sm">AI-powered itineraries</p>
+      </div>
+
+      {/* Right panel */}
+      <div className="relative z-10 w-[460px] flex items-center justify-center p-8">
+        <div className="w-full bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 space-y-5">
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              {isSignUp ? 'Create account' : 'Welcome back'}
+            </h1>
+            <p className="text-white/50 text-sm mt-1">
+              {isSignUp ? 'Start planning your next adventure' : 'Sign in to continue planning'}
+            </p>
+          </div>
+
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="username" className="text-white/90">Username</Label>
+              <div className="space-y-1.5">
+                <Label className="text-white/80 text-sm">Username</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                     required
                     placeholder="wheretwo-user-0"
-                    className="flex-1 bg-white/20 border-white/30 text-white placeholder:text-white/50"
+                    className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
                   />
-                  <Button type="button" variant="outline" onClick={generateRandomUsername} className="border-white/30 text-white hover:bg-white/20">
-                    Random
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={generateRandomUsername}
+                    className="text-white/60 hover:text-white hover:bg-white/10 border border-white/20"
+                  >
+                    <Shuffle className="w-4 h-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-white/50">Lowercase letters, numbers, and dashes only</p>
+                <p className="text-white/35 text-xs">Lowercase letters, numbers, and dashes only</p>
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white/90">Email</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-white/80 text-sm">Email</Label>
               <Input
-                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
-                className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/90">Password</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-white/80 text-sm">Password</Label>
               <Input
-                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                className="bg-white/20 border-white/30 text-white placeholder:text-white/50"
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
               />
             </div>
+
             {error && (
-              <div className="text-sm text-white bg-white/20 p-3 rounded-lg border border-white/30">{error}</div>
+              <div className="text-sm text-red-300 bg-red-900/30 p-3 rounded-lg border border-red-500/30">
+                {error}
+              </div>
             )}
-            <Button type="submit" className="w-full h-11 text-base font-semibold bg-white text-black hover:bg-white/90 shadow-md transition-all" disabled={loading}>
+
+            <Button
+              type="submit"
+              className="w-full h-11 text-sm font-semibold bg-white text-gray-900 hover:bg-white/90"
+              disabled={loading}
+            >
               {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-6 text-center">
+
+          <div className="text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError('');
-              }}
-              className="text-sm text-white/80 hover:text-white font-medium transition-colors"
+              onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+              className="text-sm text-white/50 hover:text-white/80 transition-colors"
             >
               {isSignUp ? 'Already have an account? Sign in →' : "Don't have an account? Sign up →"}
             </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import logoImg from '../../assets/logo.png';
+import headerImg from '../../assets/header.jpg';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -193,8 +194,12 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
 
   return (
     <div className="size-full overflow-auto bg-background">
-      <header className="bg-gradient-to-r from-primary via-primary/90 to-accent border-b border-white/10 shadow-lg sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+      <header
+        className="relative border-b border-white/10 shadow-lg sticky top-0 z-10 overflow-hidden"
+        style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center 30%' }}
+      >
+        <div className="absolute inset-0 bg-slate-900/70" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" onClick={onBack} className="text-white hover:bg-white/20">
