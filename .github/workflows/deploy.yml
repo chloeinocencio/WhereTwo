@@ -27,7 +27,7 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build -- --base=/
+      - run: npm run build -- --base=/WhereTwo/
         env:
           NODE_ENV: production
 
