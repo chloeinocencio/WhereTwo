@@ -936,7 +936,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
               <form onSubmit={handleCreateItinerary}>
                 {createStep === 1 ? (
-                  <div className="space-y-5">
+                  <div className="flex flex-col gap-5 min-h-[440px]">
                     <div className="space-y-2">
                       <Label htmlFor="location" className="text-base">Where are you going?</Label>
                       <div className="relative">
@@ -1057,12 +1057,12 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       <p className="text-xs text-slate-500">Select your check-in and check-out dates</p>
                     </div>
 
-                    <Button type="button" className="w-full h-11 text-base" onClick={handleAdvanceStep}>
+                    <Button type="button" className="w-full h-11 text-base mt-auto" onClick={handleAdvanceStep}>
                       Continue
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="flex flex-col gap-4 min-h-[440px]">
                     <div className="space-y-2">
                       <Label className="text-base">What experiences interest you?</Label>
                       <div className="grid grid-cols-2 gap-2">
@@ -1107,7 +1107,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mt-auto">
                       <Button type="button" variant="outline" onClick={() => setCreateStep(1)} className="gap-1.5" disabled={isCreating}>
                         <ArrowLeft className="w-4 h-4" />
                         Back
