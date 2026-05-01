@@ -118,7 +118,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
       {/* Left panel */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12 lg:p-16 gap-6 text-center">
-        <img src={logoImg} alt="WhereTwo" className="h-10 w-auto max-w-[280px]" />
+        <img src={logoImg} alt="WhereTwo" className="h-20 w-auto max-w-[320px]" />
         <div className="space-y-3">
           <h2 className="text-4xl font-bold text-white leading-tight">
             Let's explore the world together

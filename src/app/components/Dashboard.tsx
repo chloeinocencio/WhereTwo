@@ -855,7 +855,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       >
         <div className="absolute inset-0 bg-slate-900/70" />
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <img src={logoImg} alt="WhereTwo" className="h-8 w-auto drop-shadow-md" />
+          <img src={logoImg} alt="WhereTwo" className="h-12 w-auto drop-shadow-md" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="text-white hover:bg-white/10 gap-2 border border-white/20 rounded-full px-4">
