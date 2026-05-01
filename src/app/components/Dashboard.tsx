@@ -14,14 +14,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { format, differenceInDays, addDays } from 'date-fns';
 
 const ACTIVITY_INTERESTS = [
-  { id: 'culture', label: 'Culture & Heritage' },
-  { id: 'culinary', label: 'Culinary Experiences' },
-  { id: 'outdoor', label: 'Outdoor & Adventure' },
-  { id: 'arts', label: 'Arts & Entertainment' },
-  { id: 'shopping', label: 'Shopping & Markets' },
-  { id: 'wellness', label: 'Wellness & Relaxation' },
-  { id: 'nightlife', label: 'Nightlife & Social' },
-  { id: 'photography', label: 'Photography & Scenic' },
+  { id: 'culture', label: 'Culture' },
+  { id: 'culinary', label: 'Foodie Spots' },
+  { id: 'outdoor', label: 'Outdoors' },
+  { id: 'arts', label: 'Arts' },
+  { id: 'shopping', label: 'Shopping' },
+  { id: 'wellness', label: 'Self Care' },
+  { id: 'nightlife', label: 'Social' },
+  { id: 'photography', label: 'Photo Ops' },
 ];
 
 const PACE_OPTIONS = [
