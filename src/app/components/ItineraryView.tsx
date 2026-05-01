@@ -19,13 +19,15 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -58,6 +60,15 @@ const formatDescription = (description: string) => {
   sections.main = mainText.join('. ');
   return sections;
 };
+
+function DroppableDay({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`space-y-4 min-h-[60px] rounded-lg transition-colors ${isOver ? 'bg-primary/5 ring-2 ring-primary/20' : ''}`}>
+      {children}
+    </div>
+  );
+}
 
 interface SortableActivityProps {
   activity: any;
@@ -232,6 +243,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [newActivity, setNewActivity] = useState({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
   const [editedDayTitle, setEditedDayTitle] = useState('');
+  const [activeActivity, setActiveActivity] = useState<any>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -378,18 +390,57 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     await savePlan(renumbered);
   };
 
-  const handleDragEnd = async (event: DragEndEvent, dayIndex: number) => {
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = String(event.active.id);
+    for (const day of itinerary.plan) {
+      const found = day.activities.find((a: any) => a.id === id);
+      if (found) { setActiveActivity(found); break; }
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const activities = itinerary.plan[dayIndex].activities;
-    const oldIndex = activities.findIndex((a: any) => a.id === active.id);
-    const newIndex = activities.findIndex((a: any) => a.id === over.id);
-    const reordered = arrayMove(activities, oldIndex, newIndex);
-    const updatedPlan = itinerary.plan.map((day: any, i: number) =>
-      i !== dayIndex ? day : { ...day, activities: reordered }
+    setActiveActivity(null);
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    const sourceDayIndex = itinerary.plan.findIndex((day: any) =>
+      day.activities.some((a: any) => a.id === activeId)
     );
-    setItinerary({ ...itinerary, plan: updatedPlan });
-    await savePlan(updatedPlan);
+    if (sourceDayIndex === -1) return;
+
+    let targetDayIndex: number;
+    let insertBeforeId: string | null = null;
+
+    if (overId.startsWith('day-drop-')) {
+      targetDayIndex = parseInt(overId.replace('day-drop-', ''));
+    } else {
+      targetDayIndex = itinerary.plan.findIndex((day: any) =>
+        day.activities.some((a: any) => a.id === overId)
+      );
+      if (targetDayIndex === -1) return;
+      insertBeforeId = overId;
+    }
+
+    if (sourceDayIndex === targetDayIndex && activeId === overId) return;
+
+    const plan = itinerary.plan.map((day: any) => ({ ...day, activities: [...day.activities] }));
+    const sourceActivities = plan[sourceDayIndex].activities;
+    const actIdx = sourceActivities.findIndex((a: any) => a.id === activeId);
+    const [activity] = sourceActivities.splice(actIdx, 1);
+
+    const targetActivities = plan[targetDayIndex].activities;
+    if (insertBeforeId) {
+      const targetIdx = targetActivities.findIndex((a: any) => a.id === insertBeforeId);
+      targetActivities.splice(targetIdx === -1 ? targetActivities.length : targetIdx, 0, activity);
+    } else {
+      targetActivities.push(activity);
+    }
+
+    setItinerary({ ...itinerary, plan });
+    await savePlan(plan);
   };
 
   if (loading) {
@@ -503,6 +554,12 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
           </CardContent>
         </Card>
 
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
         <div className="space-y-6">
           {itinerary.plan.map((day: any, dayIndex: number) => (
             <Card key={day.day} className="border-2 shadow-md hover:shadow-lg transition-shadow">
@@ -556,33 +613,27 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event) => handleDragEnd(event, dayIndex)}
+                <SortableContext
+                  items={day.activities.map((a: any) => a.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <SortableContext
-                    items={day.activities.map((a: any) => a.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-4">
-                      {day.activities.map((activity: any) => (
-                        <SortableActivity
-                          key={activity.id}
-                          activity={activity}
-                          dayIndex={dayIndex}
-                          editingActivity={editingActivity}
-                          editedActivity={editedActivity}
-                          onEdit={handleEditActivity}
-                          onDelete={handleDeleteActivity}
-                          onSave={handleSaveActivity}
-                          onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
-                          onEditedChange={setEditedActivity}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                  <DroppableDay id={`day-drop-${dayIndex}`}>
+                    {day.activities.map((activity: any) => (
+                      <SortableActivity
+                        key={activity.id}
+                        activity={activity}
+                        dayIndex={dayIndex}
+                        editingActivity={editingActivity}
+                        editedActivity={editedActivity}
+                        onEdit={handleEditActivity}
+                        onDelete={handleDeleteActivity}
+                        onSave={handleSaveActivity}
+                        onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
+                        onEditedChange={setEditedActivity}
+                      />
+                    ))}
+                  </DroppableDay>
+                </SortableContext>
                 <button
                   onClick={() => {
                     setAddingToDayIndex(dayIndex);
@@ -597,6 +648,17 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
             </Card>
           ))}
         </div>
+          <DragOverlay>
+            {activeActivity ? (
+              <div className="border-2 border-primary bg-card rounded-xl px-5 py-3 shadow-xl opacity-90">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-2 font-semibold">{activeActivity.timeSlot}</Badge>
+                  <span className="font-bold text-foreground">{activeActivity.title}</span>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </main>
 
       <Dialog open={addingToDayIndex !== null} onOpenChange={(open) => { if (!open) setAddingToDayIndex(null); }}>
