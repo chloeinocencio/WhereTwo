@@ -118,15 +118,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
       {/* Left panel */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12 lg:p-16 gap-3 text-center">
-        <img src={logoImg} alt="WhereTwo" className="h-40 w-auto max-w-[400px]" />
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold text-white leading-tight">
-            Let's explore the world together
-          </h2>
-          <p className="text-white/60 flex items-center justify-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 shrink-0" />
-            AI-powered itineraries
-          </p>
         </div>
         <p className="absolute bottom-10 text-white/40 text-sm">© 2026 Chloe Inocencio. All Rights Reserved.</p>
       </div>
@@ -146,14 +137,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             {isSignUp && (
               <div className="space-y-1.5">
-                <Label className="text-white/80 text-sm">Username</Label>
                 <div className="flex gap-2">
                   <Input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                     required
-                    placeholder="wheretwo-user-0"
+                    placeholder="Username"
                     className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
                   />
                   <Button
@@ -171,25 +161,23 @@ export function AuthView({ onLogin }: AuthViewProps) {
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-white/80 text-sm">Email</Label>
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="you@example.com"
+                placeholder="Email"
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-white/80 text-sm">Password</Label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="••••••••"
+                placeholder="Password"
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
               />
             </div>
