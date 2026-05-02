@@ -117,28 +117,21 @@ export function AuthView({ onLogin }: AuthViewProps) {
         backgroundPosition: 'center',
       }}
     >
-      {/* Background overlay */}
       <div className="absolute inset-0 bg-black/55" />
-
-      {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/30" />
 
-      {/* Center content */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-[430px] rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
-          
-          {/* Logo + title */}
           <div className="flex flex-col items-center text-center mb-8">
-              <img
-                src={logoImg}
-                alt="WhereTwo"
-              />
-            </div>
+            <img
+              src={logoImg}
+              alt="WhereTwo"
+              className="w-32 h-32 object-contain mb-4"
+            />
 
             <h1 className="text-[28px] font-semibold tracking-tight text-white">
               {isSignUp ? 'Create account' : 'Welcome back'}
             </h1>
-
           </div>
 
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
@@ -221,7 +214,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
         © {new Date().getFullYear()} Chloe Inocencio. All rights reserved.
       </footer>
