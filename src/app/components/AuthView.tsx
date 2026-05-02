@@ -18,6 +18,10 @@ export function AuthView({ onLogin }: AuthViewProps) {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const generateRandomUsername = async () => {
     try {
@@ -66,22 +70,69 @@ export function AuthView({ onLogin }: AuthViewProps) {
         return;
       }
 
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (loginError) {
-        setError(loginError.message);
+      if (data.requiresVerification) {
+        setPendingUserId(data.userId);
+        setPendingVerification(true);
         setLoading(false);
+        startResendCooldown();
         return;
       }
 
+      // fallback: auto-login if somehow already confirmed
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginError) { setError(loginError.message); setLoading(false); return; }
       onLogin(loginData.session);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
       setLoading(false);
     }
+  };
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown(prev => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; });
+    }, 1000);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/verify-email`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ userId: pendingUserId, code: verificationCode }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Verification failed'); setLoading(false); return; }
+
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginError) { setError(loginError.message); setLoading(false); return; }
+      onLogin(loginData.session);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/resend-verification`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ userId: pendingUserId }),
+        }
+      );
+      startResendCooldown();
+    } catch { /* silent */ }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -129,93 +180,142 @@ export function AuthView({ onLogin }: AuthViewProps) {
         />
 
         <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
-          <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
-            {isSignUp ? 'Create account' : 'Welcome back'}
-          </h1>
-
-          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={username}
-                    onChange={(e) =>
-                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
-                    }
-                    required
-                    placeholder="Username"
-                    className="h-12 flex-1 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
-                  />
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={generateRandomUsername}
-                    className="h-12 w-12 rounded-2xl text-white/65 hover:text-white hover:bg-white/15 border border-white/15"
-                  >
-                    <Shuffle className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <p className="text-xs text-white/35">
-                  Lowercase letters, numbers, and dashes only
-                </p>
+          {pendingVerification ? (
+            <>
+              <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-2">
+                Check your email
+              </h1>
+              <p className="text-sm text-white/50 text-center mb-6">
+                We sent a 6-digit code to <span className="text-white/80 font-medium">{email}</span>
+              </p>
+              <form onSubmit={handleVerify} className="space-y-4">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  required
+                  placeholder="000000"
+                  className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30 text-center text-2xl tracking-widest font-bold"
+                  autoFocus
+                />
+                {error && (
+                  <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                    {error}
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading || verificationCode.length !== 6}
+                  className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                >
+                  {loading ? 'Verifying...' : 'Verify Email'}
+                </Button>
+              </form>
+              <div className="pt-6 text-center">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0}
+                  className="text-sm text-white/55 hover:text-white transition-colors disabled:opacity-40"
+                >
+                  {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                </button>
               </div>
-            )}
+            </>
+          ) : (
+            <>
+              <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
+                {isSignUp ? 'Create account' : 'Welcome back'}
+              </h1>
 
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Email"
-              className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
-            />
+              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={username}
+                        onChange={(e) =>
+                          setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                        }
+                        required
+                        placeholder="Username"
+                        className="h-12 flex-1 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                      />
 
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Password"
-              className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
-            />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={generateRandomUsername}
+                        className="h-12 w-12 rounded-2xl text-white/65 hover:text-white hover:bg-white/15 border border-white/15"
+                      >
+                        <Shuffle className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-            {error && (
-              <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
-                {error}
+                    <p className="text-xs text-white/35">
+                      Lowercase letters, numbers, and dashes only
+                    </p>
+                  </div>
+                )}
+
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="Email"
+                  className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                />
+
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Password"
+                  className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                />
+
+                {error && (
+                  <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                    {error}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                >
+                  {loading ? 'Loading' : isSignUp ? 'Create account' : 'Sign in'}
+                </Button>
+              </form>
+
+              <div className="pt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setError('');
+                  }}
+                  className="text-sm text-white/55 hover:text-white transition-colors"
+                >
+                  {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                </button>
               </div>
-            )}
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
-            >
-              {loading ? 'Loading' : isSignUp ? 'Create account' : 'Sign in'}
-            </Button>
-          </form>
-
-          <div className="pt-6 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError('');
-              }}
-              className="text-sm text-white/55 hover:text-white transition-colors"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : 'Don't have an account? Sign up'}
-            </button>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </main>
 
     <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
-      © {new Date().getFullYear()} Chloe Inocencio. All rights reserved.
+      © {new Date().getFullYear()} Chloe Inocencio. All Rights Reserved.
     </footer>
   </div>
 );
+}

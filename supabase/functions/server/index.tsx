@@ -98,7 +98,6 @@ app.post("/make-server-9b7ec865/signup", async (c) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Check if username already exists
     const existingUsername = await kv.get(`username:${username}`);
     if (existingUsername) {
       return c.json({ error: "Username already taken" }, 400);
@@ -108,8 +107,7 @@ app.post("/make-server-9b7ec865/signup", async (c) => {
       email,
       password,
       user_metadata: { username },
-      // Automatically confirm the user's email since an email server hasn't been configured.
-      email_confirm: true
+      email_confirm: false,
     });
 
     if (error) {
@@ -121,34 +119,116 @@ app.post("/make-server-9b7ec865/signup", async (c) => {
     await kv.set(`username:${username}`, { userId: data.user.id });
     await kv.set(`user:${data.user.id}:username`, username);
 
-    // Send welcome email
+    // Generate and store 6-digit OTP (15-minute expiry)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await kv.set(`email-verification:${data.user.id}`, { code: otp, expiresAt, email });
+
     await sendEmail(
       email,
-      'Welcome to WhereTwo!',
+      'Verify your WhereTwo account',
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #276fbf;">Welcome to WhereTwo!</h1>
+          <h1 style="color: #276fbf;">Verify your email</h1>
           <p>Hi <strong>@${username}</strong>,</p>
-          <p>Your account has been successfully created. You can now start planning your travel itineraries with AI-powered recommendations!</p>
-          <h2 style="color: #276fbf;">What you can do:</h2>
-          <ul>
-            <li>Create personalized travel itineraries</li>
-            <li>Get AI-generated activity recommendations</li>
-            <li>Invite collaborators to plan trips together</li>
-            <li>Edit and customize your plans</li>
-          </ul>
-          <p>Happy travels!</p>
-          <p style="color: #666; font-size: 12px; margin-top: 40px;">
-            This is an automated email from WhereTwo. Please do not reply to this email.
-          </p>
+          <p>Enter the code below to verify your WhereTwo account. It expires in <strong>15 minutes</strong>.</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <div style="display: inline-block; background: #f6f4f3; border: 2px solid #276fbf; border-radius: 12px; padding: 20px 40px;">
+              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #183059;">${otp}</span>
+            </div>
+          </div>
+          <p style="color: #666;">If you didn't create a WhereTwo account, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
         </div>
       `
     );
 
-    return c.json({ user: data.user });
+    return c.json({ requiresVerification: true, userId: data.user.id });
   } catch (error) {
     console.log(`Sign up error during request processing: ${error}`);
     return c.json({ error: "Failed to create user" }, 500);
+  }
+});
+
+app.post("/make-server-9b7ec865/verify-email", async (c) => {
+  try {
+    const { userId, code } = await c.req.json();
+    if (!userId || !code) return c.json({ error: "userId and code are required" }, 400);
+
+    const verification = await kv.get(`email-verification:${userId}`);
+    if (!verification) return c.json({ error: "Verification code not found or already used" }, 400);
+    if (new Date() > new Date(verification.expiresAt)) {
+      await kv.del(`email-verification:${userId}`);
+      return c.json({ error: "Verification code has expired — please request a new one" }, 400);
+    }
+    if (verification.code !== code) return c.json({ error: "Incorrect code. Please try again." }, 400);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, { email_confirm: true });
+    if (error) return c.json({ error: "Failed to verify account" }, 500);
+
+    await kv.del(`email-verification:${userId}`);
+
+    const username = await kv.get(`user:${userId}:username`) || 'traveler';
+    await sendEmail(
+      verification.email,
+      'Welcome to WhereTwo!',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">You're all set, @${username}!</h1>
+          <p>Your email has been verified. Start planning your next adventure on WhereTwo.</p>
+          <p>Happy travels!</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Verify email error: ${error}`);
+    return c.json({ error: "Failed to verify email" }, 500);
+  }
+});
+
+app.post("/make-server-9b7ec865/resend-verification", async (c) => {
+  try {
+    const { userId } = await c.req.json();
+    if (!userId) return c.json({ error: "userId is required" }, 400);
+
+    const existing = await kv.get(`email-verification:${userId}`);
+    if (!existing) return c.json({ error: "No pending verification found" }, 400);
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await kv.set(`email-verification:${userId}`, { code: otp, expiresAt, email: existing.email });
+
+    const username = await kv.get(`user:${userId}:username`) || 'traveler';
+    await sendEmail(
+      existing.email,
+      'Your new WhereTwo verification code',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">New verification code</h1>
+          <p>Hi <strong>@${username}</strong>, here is your new code:</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <div style="display: inline-block; background: #f6f4f3; border: 2px solid #276fbf; border-radius: 12px; padding: 20px 40px;">
+              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #183059;">${otp}</span>
+            </div>
+          </div>
+          <p style="color: #666;">Expires in 15 minutes.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Resend verification error: ${error}`);
+    return c.json({ error: "Failed to resend code" }, 500);
   }
 });
 
