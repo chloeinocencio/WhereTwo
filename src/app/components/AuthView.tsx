@@ -22,6 +22,9 @@ export function AuthView({ onLogin }: AuthViewProps) {
   const [pendingUserId, setPendingUserId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [forgotMode, setForgotMode] = useState<'password' | 'username' | null>(null);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
 
   const generateRandomUsername = async () => {
     try {
@@ -135,6 +138,44 @@ export function AuthView({ onLogin }: AuthViewProps) {
     } catch { /* silent */ }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}${window.location.pathname}`,
+      });
+      if (error) { setError(error.message); setLoading(false); return; }
+      setForgotSent(true);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/forgot-username`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ email: forgotEmail }),
+        }
+      );
+      setForgotSent(true);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -180,7 +221,82 @@ export function AuthView({ onLogin }: AuthViewProps) {
         />
 
         <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
-          {pendingVerification ? (
+          {forgotMode ? (
+            forgotSent ? (
+              <>
+                <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-2">
+                  Check your email
+                </h1>
+                <p className="text-sm text-white/50 text-center mb-8">
+                  {forgotMode === 'password'
+                    ? 'We sent a password reset link to '
+                    : 'We sent your username to '}
+                  <span className="text-white/80 font-medium">{forgotEmail}</span>
+                </p>
+                <Button
+                  type="button"
+                  className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                  onClick={() => { setForgotMode(null); setForgotSent(false); setForgotEmail(''); setError(''); }}
+                >
+                  Back to sign in
+                </Button>
+              </>
+            ) : (
+              <>
+                <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
+                  {forgotMode === 'password' ? 'Reset password' : 'Find username'}
+                </h1>
+                <div className="flex gap-2 mb-6">
+                  {(['password', 'username'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setForgotMode(mode); setError(''); }}
+                      className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+                        forgotMode === mode
+                          ? 'bg-white text-gray-950'
+                          : 'bg-white/10 text-white/60 hover:bg-white/15'
+                      }`}
+                    >
+                      {mode === 'password' ? 'Password' : 'Username'}
+                    </button>
+                  ))}
+                </div>
+                <form onSubmit={forgotMode === 'password' ? handleForgotPassword : handleForgotUsername} className="space-y-4">
+                  <Input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                    placeholder="Email"
+                    className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                    autoFocus
+                  />
+                  {error && (
+                    <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                      {error}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                  >
+                    {loading ? 'Sending...' : forgotMode === 'password' ? 'Send reset link' : 'Send username'}
+                  </Button>
+                </form>
+                <div className="pt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setForgotMode(null); setForgotEmail(''); setError(''); }}
+                    className="text-sm text-white/55 hover:text-white transition-colors"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              </>
+            )
+          ) : pendingVerification ? (
             <>
               <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-2">
                 Check your email
@@ -279,6 +395,18 @@ export function AuthView({ onLogin }: AuthViewProps) {
                   placeholder="Password"
                   className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
                 />
+
+                {!isSignUp && (
+                  <div className="flex justify-end -mt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setForgotMode('password'); setForgotEmail(email); setError(''); }}
+                      className="text-xs text-white/45 hover:text-white/70 transition-colors"
+                    >
+                      Forgot password or username?
+                    </button>
+                  </div>
+                )}
 
                 {error && (
                   <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">

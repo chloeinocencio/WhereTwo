@@ -232,6 +232,50 @@ app.post("/make-server-9b7ec865/resend-verification", async (c) => {
   }
 });
 
+app.post("/make-server-9b7ec865/account/forgot-username", async (c) => {
+  try {
+    const { email } = await c.req.json();
+    if (!email) return c.json({ error: "Email is required" }, 400);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    // Always respond success to avoid email enumeration
+    if (!user) return c.json({ success: true });
+
+    const username = await kv.get(`user:${user.id}:username`) || user.user_metadata?.username;
+    if (!username) return c.json({ success: true });
+
+    await sendEmail(
+      email,
+      'Your WhereTwo username',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">Your WhereTwo username</h1>
+          <p>Here is the username associated with this email address:</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <div style="display: inline-block; background: #f6f4f3; border: 2px solid #276fbf; border-radius: 12px; padding: 16px 40px;">
+              <span style="font-size: 28px; font-weight: bold; color: #183059;">@${username}</span>
+            </div>
+          </div>
+          <p style="color: #666;">If you didn't request this, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Forgot username error: ${error}`);
+    return c.json({ error: "Failed to process request" }, 500);
+  }
+});
+
 // Itinerary endpoints
 app.post("/make-server-9b7ec865/itineraries", async (c) => {
   try {
