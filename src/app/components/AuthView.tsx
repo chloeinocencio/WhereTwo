@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Shuffle } from 'lucide-react';
 import headerImg from '../../assets/header.jpg';
-import logoImg from '../../assets/ios.png';
+import logoImg from '../../assets/pin-logo.png';
 
 interface AuthViewProps {
   onLogin: (session: any) => void;
@@ -129,10 +129,9 @@ export function AuthView({ onLogin }: AuthViewProps) {
           
           {/* Logo + title */}
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 border border-white/20 shadow-lg backdrop-blur-xl">
               <img
                 src={logoImg}
-                alt="WhereTwo logo"
+                alt="WhereTwo"
               />
             </div>
 
