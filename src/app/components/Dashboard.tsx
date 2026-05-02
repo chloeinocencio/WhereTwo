@@ -173,7 +173,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       );
       const data = await res.json();
       const seen = new Set<string>();
-      const neighborhoodTypes = new Set(['suburb', 'quarter', 'neighbourhood', 'city_district', 'borough', 'residential']);
+      const neighborhoodTypes = new Set(['town', 'village', 'suburb', 'city_district']);
       const suggestions = data
         .filter((r: any) => neighborhoodTypes.has(r.addresstype))
         .map((r: any) => r.name?.trim())
