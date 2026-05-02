@@ -15,30 +15,30 @@ import { format, differenceInDays, addDays } from 'date-fns';
 
 const ACTIVITY_INTERESTS = [
   { id: 'culture', label: 'Culture' },
-  { id: 'culinary', label: 'Foodie Spots' },
+  { id: 'culinary', label: 'Food & Drink' },
   { id: 'outdoor', label: 'Outdoors' },
-  { id: 'arts', label: 'Arts' },
+  { id: 'arts', label: 'Arts & Entertainment' },
   { id: 'shopping', label: 'Shopping' },
-  { id: 'wellness', label: 'Self Care' },
+  { id: 'wellness', label: 'Wellness' },
   { id: 'nightlife', label: 'Nightlife' },
-  { id: 'photography', label: 'Photo Ops' },
+  { id: 'photography', label: 'Scenic Spots' },
 ];
 
 const PACE_OPTIONS = [
   {
     id: 'leisurely',
-    label: 'Leisurely',
-    description: '2–3 key experiences per day with time to truly absorb each moment',
+    label: 'Relaxed',
+    description: '2–3 activities per day',
   },
   {
     id: 'balanced',
     label: 'Balanced',
-    description: '4–5 curated activities blending exploration with relaxed downtime',
+    description: '4–5 activities per day',
   },
   {
     id: 'immersive',
-    label: 'Immersive',
-    description: '6+ experiences per day, maximizing every hour of your trip',
+    label: 'Fast-Paced',
+    description: '6+ activities per day',
   },
 ];
 
@@ -766,13 +766,13 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                               key={interest.id}
                               type="button"
                               onClick={() => toggleInterest(interest.id)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all text-left ${
+                              className={`flex items-center justify-center text-center px-4 py-2.5 rounded-full border-2 text-sm font-medium tracking-tight transition-all ${
                                 selected
-                                  ? 'border-primary bg-primary/5 text-primary'
+                                  ? 'border-primary bg-primary/5 text-primary shadow-sm'
                                   : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
                               }`}
                             >
-                              <span>{interest.label}</span>
+                              {interest.label}
                             </button>
                           );
                         })}
@@ -781,20 +781,24 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
                     <div className="space-y-2">
                       <Label className="text-base">How would you like to pace your days?</Label>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {PACE_OPTIONS.map((option) => (
                           <button
                             key={option.id}
                             type="button"
                             onClick={() => setSelectedPace(option.id as 'leisurely' | 'balanced' | 'immersive')}
-                            className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
+                            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
                               selectedPace === option.id
-                                ? 'border-primary bg-primary/5'
+                                ? 'border-primary bg-primary/5 shadow-sm'
                                 : 'border-border hover:border-primary/40 hover:bg-muted/50'
                             }`}
                           >
-                            <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>{option.label}</div>
-                            <div className="text-xs text-muted-foreground">{option.description}</div>
+                            <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>
+                              {option.label}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                              {option.description}
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -818,8 +822,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                     </div>
                     {isCreating && (
                       <div className="text-center">
-                        <p className="text-sm text-muted-foreground">Our AI is planning your perfect trip...</p>
-                        <p className="text-xs text-muted-foreground mt-1">This may take up to 30 seconds</p>
+                        <p className="text-sm text-muted-foreground">Planning your perfect trip</p>
+                        <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
                       </div>
                     )}
                   </div>
