@@ -227,32 +227,32 @@ export function AuthView({ onLogin }: AuthViewProps) {
           className="w-56 h-56 object-contain"
         />
 
-        <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
-          {forgotMode ? (
-            forgotSent ? (
-              <>
-                <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-2">
-                  Check your email
-                </h1>
-                <p className="text-sm text-white/50 text-center mb-8">
-                  {forgotMode === 'password'
-                    ? 'We sent a password reset link to '
-                    : 'We sent your username to '}
-                  <span className="text-white/80 font-medium">{forgotEmail}</span>
-                </p>
-                <Button
-                  type="button"
-                  className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
-                  onClick={() => { setForgotMode(null); setForgotSent(false); setForgotEmail(''); setError(''); }}
-                >
-                  Back to sign in
-                </Button>
-              </>
-            ) : (
-              <>
-                <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
-                  {forgotMode === 'password' ? 'Reset password' : 'Find username'}
-                </h1>
+        <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-7">
+  {forgotMode ? (
+    forgotSent ? (
+      <>
+        <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-2">
+          Check your email
+        </h1>
+        <p className="text-sm text-white/50 text-center mb-8">
+          {forgotMode === 'password'
+            ? 'We sent a password reset link to '
+            : 'We sent your username to '}
+          <span className="text-white/80 font-medium">{forgotEmail}</span>
+        </p>
+        <Button
+          type="button"
+          className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+          onClick={() => { setForgotMode(null); setForgotSent(false); setForgotEmail(''); setError(''); }}
+        >
+          Back to sign in
+        </Button>
+      </>
+    ) : (
+      <>
+        <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
+          {forgotMode === 'password' ? 'Reset password' : 'Find username'}
+        </h1>
                 <div className="flex gap-2 mb-6">
                   {(['password', 'username'] as const).map((mode) => (
                     <button
@@ -349,10 +349,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
             </>
           ) : (
             <>
-              <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
-                {isSignUp ? 'Create account' : 'Welcome back'}
-              </h1>
-
               <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
                 {isSignUp && (
                   <div className="space-y-2">
