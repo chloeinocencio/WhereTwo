@@ -406,7 +406,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                       onClick={() => { setForgotMode('password'); setForgotEmail(email); setError(''); }}
                       className="text-xs text-white/45 hover:text-white/70 transition-colors"
                     >
-                      Forgot your login details?
+                      Forgot your login details? Get help
                     </button>
                   </div>
                 )}
