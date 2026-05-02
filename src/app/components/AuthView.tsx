@@ -227,7 +227,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           ) : (
             <>
               <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
-                {isSignUp ? 'Create account' : 'Welcome back'}
+                {isSignUp ? 'Get started' : 'Log in'}
               </h1>
 
               <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
@@ -291,7 +291,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                   disabled={loading}
                   className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
                 >
-                  {loading ? 'Loading' : isSignUp ? 'Create account' : 'Sign in'}
+                  {loading ? 'Loading' : isSignUp ? 'Get started' : 'Log in'}
                 </Button>
               </form>
 
