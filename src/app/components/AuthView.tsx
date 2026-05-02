@@ -219,15 +219,15 @@ export function AuthView({ onLogin }: AuthViewProps) {
     <div className="absolute inset-0 bg-black/55" />
     <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/30" />
 
-    <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
-      <div className="flex flex-col items-center w-full max-w-[430px]">
+    <main className="relative z-10 flex-1 flex items-center justify-center px-6">
+      <div className="flex flex-col items-center w-full max-w-[380px] gap-4">
         <img
           src={logoImg}
           alt="WhereTwo"
           className="w-56 h-56 object-contain"
         />
 
-        <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-7">
+<div className="w-full px-6 py-6">
   {forgotMode ? (
     forgotSent ? (
       <>
@@ -400,11 +400,11 @@ export function AuthView({ onLogin }: AuthViewProps) {
                 />
 
                 {!isSignUp && (
-                  <div className="flex justify-end -mt-1">
+                  <div className="flex justify-center -mt-1">
                     <button
                       type="button"
                       onClick={() => { setForgotMode('password'); setForgotEmail(email); setError(''); }}
-                      className="text-xs text-white/45 hover:text-white/70 transition-colors"
+                      className="text-xs text-white/45 hover:text-white/70 transition-colors text-center"
                     >
                       Forgot your login details? Get help
                     </button>
