@@ -227,7 +227,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           ) : (
             <>
               <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
-                {isSignUp ? 'Get started' : 'Log in'}
+                {isSignUp ? 'Create account' : 'Welcome back'}
               </h1>
 
               <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
