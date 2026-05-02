@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Shuffle } from 'lucide-react';
 import headerImg from '../../assets/header.jpg';
-import logoImg from '../../assets/pin-logo.png';
+import logoImg from '../../assets/ios.png';
 
 interface AuthViewProps {
   onLogin: (session: any) => void;
