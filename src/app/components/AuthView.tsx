@@ -109,122 +109,113 @@ export function AuthView({ onLogin }: AuthViewProps) {
   };
 
   return (
-    <div
-      className="min-h-screen w-full relative flex flex-col overflow-hidden"
-      style={{
-        backgroundImage: `url(${headerImg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
-      {/* overlays */}
-      <div className="absolute inset-0 bg-black/55" />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/30" />
+  <div
+    className="min-h-screen w-full relative flex flex-col overflow-hidden"
+    style={{
+      backgroundImage: `url(${headerImg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }}
+  >
+    <div className="absolute inset-0 bg-black/55" />
+    <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/30" />
 
-      <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
-        
-        {/* wrapper */}
-        <div className="flex flex-col items-center w-full max-w-[430px]">
-          
-          {/* logo */}
-          <img
-            src={logoImg}
-            alt="WhereTwo"
-            className="w-36 h-36 object-contain mb-6"
-          />
+    <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
+      <div className="flex flex-col items-center w-full max-w-[430px]">
+        <img
+          src={logoImg}
+          alt="WhereTwo"
+          className="w-36 h-36 object-contain mb-6"
+        />
 
-          {/* CARD */}
-          <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
-            
-            <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
-              {isSignUp ? 'Create account' : 'Welcome back'}
-            </h1>
+        <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
+          <h1 className="text-[28px] font-semibold tracking-tight text-white text-center mb-6">
+            {isSignUp ? 'Create account' : 'Welcome back'}
+          </h1>
 
-            <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-              {isSignUp && (
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      value={username}
-                      onChange={(e) =>
-                        setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
-                      }
-                      required
-                      placeholder="Username"
-                      className="h-12 flex-1 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
-                    />
+          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+            {isSignUp && (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={username}
+                    onChange={(e) =>
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                    }
+                    required
+                    placeholder="Username"
+                    className="h-12 flex-1 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                  />
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={generateRandomUsername}
-                      className="h-12 w-12 rounded-2xl text-white/65 hover:text-white hover:bg-white/15 border border-white/15"
-                    >
-                      <Shuffle className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <p className="text-xs text-white/35">
-                    Lowercase letters, numbers, and dashes only
-                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={generateRandomUsername}
+                    className="h-12 w-12 rounded-2xl text-white/65 hover:text-white hover:bg-white/15 border border-white/15"
+                  >
+                    <Shuffle className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
 
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="Email"
-                className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
-              />
+                <p className="text-xs text-white/35">
+                  Lowercase letters, numbers, and dashes only
+                </p>
+              </div>
+            )}
 
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Password"
-                className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
-              />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="Email"
+              className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+            />
 
-              {error && (
-                <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
-                  {error}
-                </div>
-              )}
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Password"
+              className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+            />
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
-              >
-                {loading ? 'Loading' : isSignUp ? 'Create account' : 'Sign in'}
-              </Button>
-            </form>
+            {error && (
+              <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                {error}
+              </div>
+            )}
 
-            <div className="pt-6 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError('');
-                }}
-                className="text-sm text-white/55 hover:text-white transition-colors"
-              >
-                {isSignUp ? 'Already have an account? Sign in' : 'Don't have an account? Sign up'}
-              </button>
-            </div>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+            >
+              {loading ? 'Loading' : isSignUp ? 'Create account' : 'Sign in'}
+            </Button>
+          </form>
+
+          <div className="pt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
+              className="text-sm text-white/55 hover:text-white transition-colors"
+            >
+              {isSignUp ? 'Already have an account? Sign in' : 'Don't have an account? Sign up'}
+            </button>
           </div>
         </div>
-      </main>
+      </div>
+    </main>
 
-      {/* footer */}
-      <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} Chloe Inocencio. All rights reserved.
-      </footer>
-    </div>
-  );
-}
+    <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
+      © {new Date().getFullYear()} Chloe Inocencio. All rights reserved.
+    </footer>
+  </div>
+);
