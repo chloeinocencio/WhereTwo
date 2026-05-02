@@ -68,9 +68,10 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     base: '',
     days: '3',
   });
-  const [locationSuggestions, setLocationSuggestions] = useState<{ city: string; country: string; full: string }[]>([]);
+  const [locationSuggestions, setLocationSuggestions] = useState<{ city: string; country: string; full: string; boundingbox: string[] }[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [cityBoundingBox, setCityBoundingBox] = useState<string[] | null>(null);
   const [baseSuggestions, setBaseSuggestions] = useState<string[]>([]);
   const [showBaseSuggestions, setShowBaseSuggestions] = useState(false);
   const [baseLoading, setBaseLoading] = useState(false);
@@ -138,7 +139,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
           .map((r: any) => {
             const city = r.address?.city || r.address?.town || r.address?.municipality || r.name;
             const country = r.address?.country || '';
-            return { city, country, full: `${city}, ${country}` };
+            return { city, country, full: `${city}, ${country}`, boundingbox: r.boundingbox as string[] };
           })
           .filter((s: any) => {
             if (!s.city) return false;
@@ -157,25 +158,28 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     }, 300);
   };
 
-  const handleLocationSelect = (location: string) => {
+  const handleLocationSelect = (location: string, boundingbox: string[]) => {
     setNewItinerary({ ...newItinerary, location });
+    setCityBoundingBox(boundingbox);
     setShowLocationSuggestions(false);
   };
 
-  const fetchNeighborhoods = async (input: string, cityName: string) => {
-    if (!cityName) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
+  const fetchNeighborhoods = async (input: string) => {
+    if (!cityBoundingBox) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
     setBaseLoading(true);
     try {
-      const query = input ? `${input}, ${cityName}` : cityName;
+      const [minlat, maxlat, minlon, maxlon] = cityBoundingBox;
+      const viewbox = `${minlon},${maxlat},${maxlon},${minlat}`;
+      const q = input.trim() || ' ';
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=10`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=10&viewbox=${viewbox}&bounded=1`,
         { headers: { 'Accept-Language': 'en' } }
       );
       const data = await res.json();
       const seen = new Set<string>();
-      const neighborhoodTypes = new Set(['town', 'village', 'suburb', 'city_district']);
+      const areaTypes = new Set(['suburb', 'quarter', 'neighbourhood', 'city_district', 'borough', 'town', 'village']);
       const suggestions = data
-        .filter((r: any) => neighborhoodTypes.has(r.addresstype))
+        .filter((r: any) => areaTypes.has(r.addresstype))
         .map((r: any) => r.name?.trim())
         .filter((name: string) => {
           if (!name || seen.has(name)) return false;
@@ -195,9 +199,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const handleBaseChange = (value: string) => {
     setNewItinerary({ ...newItinerary, base: value });
     if (baseDebounceRef.current) clearTimeout(baseDebounceRef.current);
-    if (!newItinerary.location) { setShowBaseSuggestions(false); return; }
-    const cityName = newItinerary.location.split(',')[0].trim();
-    baseDebounceRef.current = setTimeout(() => fetchNeighborhoods(value, cityName), 300);
+    if (!cityBoundingBox) { setShowBaseSuggestions(false); return; }
+    baseDebounceRef.current = setTimeout(() => fetchNeighborhoods(value), 300);
   };
 
   const handleBaseSelect = (base: string) => {
@@ -261,6 +264,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         setCreateStep(1);
         setSelectedInterests([]);
         setSelectedPace('balanced');
+        setCityBoundingBox(null);
         fetchItineraries();
       } else {
         alert(data.error || 'Failed to create itinerary');
@@ -532,6 +536,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                   setCreateStep(1);
                   setSelectedInterests([]);
                   setSelectedPace('balanced');
+                  setCityBoundingBox(null);
                 }
               }
             }}>
@@ -585,7 +590,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                               <button
                                 key={index}
                                 type="button"
-                                onClick={() => handleLocationSelect(dest.full)}
+                                onClick={() => handleLocationSelect(dest.full, dest.boundingbox)}
                                 className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 last:border-0"
                               >
                                 <MapPin className="w-4 h-4 text-slate-400" />
@@ -609,12 +614,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           id="base"
                           value={newItinerary.base}
                           onChange={(e) => handleBaseChange(e.target.value)}
-                          onFocus={() => {
-                            if (newItinerary.location) {
-                              const cityName = newItinerary.location.split(',')[0].trim();
-                              fetchNeighborhoods(newItinerary.base, cityName);
-                            }
-                          }}
+                          onFocus={() => fetchNeighborhoods(newItinerary.base)}
                           onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
                           disabled={isCreating}
                           placeholder="Neighborhood or hotel area"
