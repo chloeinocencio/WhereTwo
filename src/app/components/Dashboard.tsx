@@ -73,12 +73,14 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [locationLoading, setLocationLoading] = useState(false);
   const [baseSuggestions, setBaseSuggestions] = useState<string[]>([]);
   const [showBaseSuggestions, setShowBaseSuggestions] = useState(false);
+  const [baseLoading, setBaseLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedPace, setSelectedPace] = useState<'leisurely' | 'balanced' | 'immersive'>('balanced');
   const locationInputRef = useRef<HTMLInputElement>(null);
   const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const baseInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -160,116 +162,47 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     setShowLocationSuggestions(false);
   };
 
-  const handleBaseChange = (value: string) => {
-    setNewItinerary({ ...newItinerary, base: value });
-
-    if (newItinerary.location) {
-      const locationName = newItinerary.location.split(',')[0].trim();
-      const suggestions = getNeighborhoodSuggestions(locationName, value);
+  const fetchNeighborhoods = async (input: string, cityName: string) => {
+    if (!cityName) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
+    setBaseLoading(true);
+    try {
+      const query = input ? `${input}, ${cityName}` : cityName;
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=10`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      const seen = new Set<string>();
+      const neighborhoodTypes = new Set(['suburb', 'quarter', 'neighbourhood', 'city_district', 'borough', 'residential']);
+      const suggestions = data
+        .filter((r: any) => neighborhoodTypes.has(r.addresstype))
+        .map((r: any) => r.name?.trim())
+        .filter((name: string) => {
+          if (!name || seen.has(name)) return false;
+          seen.add(name);
+          return true;
+        })
+        .slice(0, 6);
       setBaseSuggestions(suggestions);
       setShowBaseSuggestions(suggestions.length > 0);
-    } else {
+    } catch {
       setShowBaseSuggestions(false);
+    } finally {
+      setBaseLoading(false);
     }
+  };
+
+  const handleBaseChange = (value: string) => {
+    setNewItinerary({ ...newItinerary, base: value });
+    if (baseDebounceRef.current) clearTimeout(baseDebounceRef.current);
+    if (!newItinerary.location) { setShowBaseSuggestions(false); return; }
+    const cityName = newItinerary.location.split(',')[0].trim();
+    baseDebounceRef.current = setTimeout(() => fetchNeighborhoods(value, cityName), 300);
   };
 
   const handleBaseSelect = (base: string) => {
     setNewItinerary({ ...newItinerary, base });
     setShowBaseSuggestions(false);
-  };
-
-  const getNeighborhoodSuggestions = (city: string, input: string): string[] => {
-    const neighborhoods: Record<string, string[]> = {
-      'Tokyo': ['Shibuya', 'Shinjuku', 'Asakusa', 'Ginza', 'Roppongi', 'Akihabara', 'Harajuku', 'Shiodome'],
-      'Paris': ['Le Marais', 'Latin Quarter', 'Montmartre', 'Saint-Germain-des-Prés', 'Champs-Élysées', 'Opéra', 'Bastille'],
-      'London': ['Soho', 'Covent Garden', 'Westminster', 'Camden', 'Shoreditch', 'Kensington', 'Notting Hill', 'South Bank'],
-      'New York': ['Midtown', 'Brooklyn', 'Greenwich Village', 'SoHo', 'Upper East Side', 'Lower East Side', 'Williamsburg'],
-      'Barcelona': ['Gothic Quarter', 'El Born', 'Eixample', 'Gràcia', 'Barceloneta', 'Poble Sec', 'Sarrià'],
-      'Rome': ['Trastevere', 'Centro Storico', 'Monti', 'Prati', 'Testaccio', 'Aventino', 'Parioli'],
-      'Dubai': ['Downtown Dubai', 'Old Dubai', 'JBR', 'Dubai Marina', 'Deira', 'Jumeirah', 'Palm Jumeirah'],
-      'Singapore': ['Marina Bay', 'Chinatown', 'Little India', 'Orchard Road', 'Clarke Quay', 'Sentosa', 'Bugis'],
-      'Bangkok': ['Sukhumvit', 'Silom', 'Old City (Rattanakosin)', 'Ari', 'Riverside', 'Siam', 'Chatuchak'],
-      'Istanbul': ['Sultanahmet', 'Beyoğlu', 'Karaköy', 'Beşiktaş', 'Kadıköy', 'Galata', 'Ortaköy'],
-      'Seoul': ['Gangnam', 'Hongdae', 'Itaewon', 'Insadong', 'Myeongdong', 'Bukchon', 'Mapo'],
-      'Amsterdam': ['Jordaan', 'De Pijp', 'Canal Ring', 'Museum Quarter', 'Oud-Zuid', 'Waterlooplein'],
-      'Hong Kong': ['Kowloon', 'Central', 'Wan Chai', 'Causeway Bay', 'Tsim Sha Tsui', 'Mong Kok', 'Sheung Wan'],
-      'Sydney': ['CBD', 'Darling Harbour', 'Surry Hills', 'Newtown', 'Bondi', 'Manly', 'Glebe'],
-      'Los Angeles': ['Hollywood', 'Santa Monica', 'Venice Beach', 'Downtown', 'Silver Lake', 'Westwood', 'Malibu'],
-      'Venice': ['San Marco', 'Dorsoduro', 'Cannaregio', 'Castello', 'Santa Croce', 'San Polo'],
-      'Prague': ['Old Town', 'Malá Strana', 'Vinohrady', 'Žižkov', 'Holešovice', 'New Town'],
-      'Vienna': ['Innere Stadt', 'Mariahilf', 'Naschmarkt Area', 'Prater', 'Josefstadt', 'Neubau'],
-      'Madrid': ['Sol & Gran Vía', 'Malasaña', 'La Latina', 'Lavapiés', 'Salamanca', 'Chueca', 'Retiro'],
-      'Berlin': ['Mitte', 'Kreuzberg', 'Friedrichshain', 'Prenzlauer Berg', 'Charlottenburg', 'Neukölln'],
-      'Lisbon': ['Alfama', 'Bairro Alto', 'Chiado', 'Baixa', 'Belém', 'LX Factory Area', 'Mouraria'],
-      'San Francisco': ['Union Square', 'Mission District', 'Haight-Ashbury', 'North Beach', "Fisherman's Wharf", 'SoMa'],
-      'Miami': ['South Beach', 'Wynwood', 'Little Havana', 'Downtown', 'Brickell', 'Coconut Grove'],
-      'Bali': ['Seminyak', 'Ubud', 'Canggu', 'Kuta', 'Nusa Dua', 'Sanur', 'Jimbaran'],
-      'Kyoto': ['Gion', 'Arashiyama', 'Fushimi', 'Higashiyama', 'Downtown Kyoto', 'Philosopher\'s Path'],
-      'Florence': ['Historic Centre', 'Oltrarno', 'Santa Croce', 'San Marco', 'Brozzi'],
-      'Santorini': ['Oia', 'Fira', 'Imerovigli', 'Akrotiri', 'Perivolos', 'Kamari'],
-      'Cancun': ['Hotel Zone', 'Downtown', 'Puerto Morelos', 'Isla Mujeres'],
-      'Phuket': ['Patong', 'Kata', 'Karon', 'Old Town', 'Rawai', 'Kamala', 'Nai Harn'],
-      'Maldives': ['North Malé Atoll', 'South Malé Atoll', 'Ari Atoll', 'Baa Atoll'],
-      'Athens': ['Plaka', 'Monastiraki', 'Syntagma', 'Kolonaki', 'Psiri', 'Koukaki', 'Exarcheia'],
-      'Chicago': ['Loop', 'River North', 'Wicker Park', 'Lincoln Park', 'Hyde Park', 'Pilsen'],
-      'Las Vegas': ['The Strip', 'Fremont Street', 'Downtown', 'Henderson', 'Summerlin'],
-      'Boston': ['Beacon Hill', 'Back Bay', 'North End', 'South End', 'Cambridge', 'Fenway'],
-      'Seattle': ['Capitol Hill', 'Fremont', 'Belltown', 'Pioneer Square', 'Queen Anne', 'Ballard'],
-      'Melbourne': ['CBD', 'Fitzroy', 'St. Kilda', 'Collingwood', 'Carlton', 'South Yarra', 'Brunswick'],
-      'Toronto': ['Downtown', 'Kensington Market', 'Queen West', 'Distillery District', 'Yorkville', 'The Annex'],
-      'Vancouver': ['Downtown', 'Gastown', 'Yaletown', 'Kitsilano', 'Commercial Drive', 'Mount Pleasant'],
-      'Montreal': ['Plateau-Mont-Royal', 'Old Montreal', 'Mile End', 'Downtown', 'Rosemont', 'NDG'],
-      'Osaka': ['Namba', 'Shinsaibashi', 'Umeda', 'Dotonbori', 'Tennoji', 'Shinsekai', 'Nakazakicho'],
-      'Shanghai': ['The Bund', 'French Concession', 'Xintiandi', 'Old City', 'Jing\'an', 'Pudong', 'Tianzifang'],
-      'Beijing': ['Sanlitun', 'Hutong District', 'Wangfujing', '798 Art District', 'Chaoyang', 'Nanluoguxiang'],
-      'Taipei': ['Ximending', 'Da\'an', 'Zhongshan', 'Xinyi', 'Tianmu', 'Gongguan'],
-      'Kuala Lumpur': ['KLCC', 'Bukit Bintang', 'Bangsar', 'Chinatown', 'Masjid India', 'Chow Kit'],
-      'Ho Chi Minh City': ['District 1', 'Ben Thanh', 'Thao Dien', 'Bui Vien', 'District 3'],
-      'Hanoi': ['Old Quarter', 'Hoan Kiem', 'Tay Ho', 'Ba Dinh', 'French Quarter'],
-      'Mumbai': ['Colaba', 'Bandra', 'Fort', 'Juhu', 'Andheri', 'Worli', 'Lower Parel'],
-      'Delhi': ['Connaught Place', 'Hauz Khas', 'Old Delhi', 'Lajpat Nagar', 'Khan Market', 'Paharganj'],
-      'Jaipur': ['Pink City', 'Civil Lines', 'Bani Park', 'Vaishali Nagar', 'Malviya Nagar'],
-      'Cairo': ['Zamalek', 'Garden City', 'Old Cairo', 'Heliopolis', 'Mohandeseen', 'Dokki'],
-      'Marrakech': ['Medina', 'Gueliz', 'Hivernage', 'Palmeraie', 'Sidi Ghanem'],
-      'Cape Town': ['City Bowl', 'Green Point', 'V&A Waterfront', 'Sea Point', 'Bo-Kaap', 'Gardens'],
-      'Rio de Janeiro': ['Ipanema', 'Copacabana', 'Leblon', 'Lapa', 'Santa Teresa', 'Botafogo', 'Barra'],
-      'Buenos Aires': ['Palermo', 'San Telmo', 'Recoleta', 'Puerto Madero', 'Belgrano', 'Congreso'],
-      'Lima': ['Miraflores', 'Barranco', 'San Isidro', 'Surco', 'Chorrillos'],
-      'Mexico City': ['Condesa', 'Roma', 'Polanco', 'Coyoacán', 'Centro Histórico', 'Xochimilco'],
-      'Reykjavik': ['Old Harbour', '101 Reykjavik', 'Laugardalur', 'Grandi', 'Hafnarfjörður'],
-      'Copenhagen': ['Nørrebro', 'Vesterbro', 'Frederiksberg', 'Christianshavn', 'Østerbro', 'Inner City'],
-      'Stockholm': ['Gamla Stan', 'Södermalm', 'Östermalm', 'Vasastan', 'Djurgården', 'Kungsholmen'],
-      'Oslo': ['Aker Brygge', 'Grünerløkka', 'Frogner', 'Bygdøy', 'Majorstuen'],
-      'Helsinki': ['Kamppi', 'Kallio', 'Design District', 'Töölö', 'Kruununhaka', 'Ullanlinna'],
-      'Dublin': ['Temple Bar', 'Grafton Street', 'Docklands', 'Portobello', 'Ranelagh', 'Ballsbridge'],
-      'Edinburgh': ['Old Town', 'New Town', 'Leith', 'Stockbridge', 'Morningside', 'Grassmarket'],
-      'Brussels': ['Grand Place', 'Ixelles', 'Saint-Gilles', 'Schaerbeek', 'Molenbeek'],
-      'Zurich': ['Altstadt', 'Zürich West', 'Seefeld', 'Niederdorf', 'Langstrasse'],
-      'Geneva': ['Old Town', 'Eaux-Vives', 'Carouge', 'Plainpalais', 'Champel', 'Pâquis'],
-      'Monaco': ['Monte Carlo', 'La Condamine', 'Fontvieille', 'Moneghetti'],
-      'Nice': ['Old Town', 'Promenade des Anglais', 'Cimiez', 'Le Port', 'Garibaldi'],
-      'Lyon': ['Vieux-Lyon', 'Presqu\'île', 'Croix-Rousse', 'Confluence', 'Part-Dieu'],
-      'Milan': ['Brera', 'Navigli', 'Porta Romana', 'Isola', 'Garibaldi', 'Duomo', 'Porta Venezia'],
-      'Naples': ['Historic Centre', 'Spaccanapoli', 'Chiaia', 'Vomero', 'Posillipo'],
-      'Seville': ['Santa Cruz', 'Triana', 'El Centro', 'La Macarena', 'Los Remedios', 'Nervión'],
-      'Valencia': ['Old Town', 'Ruzafa', 'El Cabanyal', 'Benicalap', 'Malva-rosa'],
-      'Porto': ['Ribeira', 'Miragaia', 'Bonfim', 'Cedofeita', 'Massarelos'],
-      'Krakow': ['Old Town', 'Kazimierz', 'Podgórze', 'Krowodrza', 'Dębniki'],
-      'Budapest': ['Buda Castle', 'Jewish Quarter', 'Víziváros', 'Belváros', 'Erzsébetváros'],
-      'Warsaw': ['Old Town', 'Praga', 'Mokotów', 'Żoliborz', 'Wola'],
-      'Jerusalem': ['Old City', 'West Jerusalem', 'Mahane Yehuda', 'German Colony', 'Ein Kerem'],
-      'Tel Aviv': ['Florentin', 'Neve Tzedek', 'Rothschild Boulevard', 'The Port', 'Dizengoff', 'Old North'],
-      'Doha': ['West Bay', 'The Pearl', 'Souq Waqif', 'Al Sadd', 'Katara'],
-      'Abu Dhabi': ['Downtown', 'Corniche', 'Yas Island', 'Al Maryah Island', 'Saadiyat Island'],
-    };
-
-    const genericAreas = [
-      'City Center', 'Old Town', 'Downtown', 'Waterfront', 'Historic District',
-      'Arts Quarter', 'Business District', 'University Area', 'Harbour Area', 'Market District',
-    ];
-
-    const cityNeighborhoods = neighborhoods[city] || genericAreas;
-    return cityNeighborhoods.filter(n => !input || n.toLowerCase().includes(input.toLowerCase())).slice(0, 6);
   };
 
   const handleCreateItinerary = async (e: React.FormEvent) => {
@@ -678,10 +611,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           onChange={(e) => handleBaseChange(e.target.value)}
                           onFocus={() => {
                             if (newItinerary.location) {
-                              const locationName = newItinerary.location.split(',')[0].trim();
-                              const suggestions = getNeighborhoodSuggestions(locationName, newItinerary.base);
-                              setBaseSuggestions(suggestions);
-                              setShowBaseSuggestions(suggestions.length > 0);
+                              const cityName = newItinerary.location.split(',')[0].trim();
+                              fetchNeighborhoods(newItinerary.base, cityName);
                             }
                           }}
                           onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
@@ -689,7 +620,12 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           placeholder="Neighborhood or hotel area"
                           className="text-base"
                         />
-                        {showBaseSuggestions && baseSuggestions.length > 0 && (
+                        {baseLoading && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-2.5 text-sm text-slate-500">
+                            Searching...
+                          </div>
+                        )}
+                        {!baseLoading && showBaseSuggestions && baseSuggestions.length > 0 && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto">
                             {baseSuggestions.map((neighborhood, index) => (
                               <button
