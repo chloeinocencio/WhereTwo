@@ -176,7 +176,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
         <img
           src={logoImg}
           alt="WhereTwo"
-          className="w-56 h-56 object-contain mb-6"
+          className="w-56 h-56 object-contain mb-2"
         />
 
         <div className="w-full rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
