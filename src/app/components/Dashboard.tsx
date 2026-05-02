@@ -165,16 +165,20 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   };
 
   const fetchNeighborhoods = async (input: string) => {
-    if (!cityBoundingBox) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
+    if (!input.trim()) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
+    const cityName = newItinerary.location.split(',')[0].trim();
+    if (!cityName) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
     setBaseLoading(true);
     try {
-      const [minlat, maxlat, minlon, maxlon] = cityBoundingBox;
-      const viewbox = `${minlon},${maxlat},${maxlon},${minlat}`;
-      const q = input.trim() || ' ';
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=10&viewbox=${viewbox}&bounded=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
+      let url: string;
+      if (cityBoundingBox) {
+        const [minlat, maxlat, minlon, maxlon] = cityBoundingBox;
+        const viewbox = `${minlon},${maxlat},${maxlon},${minlat}`;
+        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&addressdetails=1&limit=10&viewbox=${viewbox}&bounded=1`;
+      } else {
+        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(`${input}, ${cityName}`)}&format=json&addressdetails=1&limit=10`;
+      }
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
       const data = await res.json();
       const seen = new Set<string>();
       const areaTypes = new Set(['suburb', 'quarter', 'neighbourhood', 'city_district', 'borough', 'town', 'village']);
@@ -199,7 +203,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const handleBaseChange = (value: string) => {
     setNewItinerary({ ...newItinerary, base: value });
     if (baseDebounceRef.current) clearTimeout(baseDebounceRef.current);
-    if (!cityBoundingBox) { setShowBaseSuggestions(false); return; }
+    if (!value.trim()) { setBaseSuggestions([]); setShowBaseSuggestions(false); return; }
     baseDebounceRef.current = setTimeout(() => fetchNeighborhoods(value), 300);
   };
 
@@ -614,7 +618,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           id="base"
                           value={newItinerary.base}
                           onChange={(e) => handleBaseChange(e.target.value)}
-                          onFocus={() => fetchNeighborhoods(newItinerary.base)}
+                          onFocus={() => { if (newItinerary.base.trim()) fetchNeighborhoods(newItinerary.base); }}
                           onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
                           disabled={isCreating}
                           placeholder="Neighborhood or hotel area"

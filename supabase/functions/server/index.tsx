@@ -232,6 +232,50 @@ app.post("/make-server-9b7ec865/resend-verification", async (c) => {
   }
 });
 
+app.post("/make-server-9b7ec865/account/forgot-password", async (c) => {
+  try {
+    const { email, redirectTo } = await c.req.json();
+    if (!email) return c.json({ error: "Email is required" }, 400);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: redirectTo || 'https://chloeinocencio.github.io/WhereTwo/' },
+    });
+
+    // Always return success to avoid email enumeration
+    if (error || !data?.properties?.action_link) return c.json({ success: true });
+
+    await sendEmail(
+      email,
+      'Reset your WhereTwo password',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">Reset your password</h1>
+          <p>We received a request to reset your WhereTwo password. Click the button below to choose a new one.</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <a href="${data.properties.action_link}" style="display: inline-block; background: #276fbf; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+              Reset Password
+            </a>
+          </div>
+          <p style="color: #666;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Forgot password error: ${error}`);
+    return c.json({ error: "Failed to process request" }, 500);
+  }
+});
+
 app.post("/make-server-9b7ec865/account/forgot-username", async (c) => {
   try {
     const { email } = await c.req.json();

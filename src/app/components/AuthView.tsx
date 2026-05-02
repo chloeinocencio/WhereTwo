@@ -143,10 +143,17 @@ export function AuthView({ onLogin }: AuthViewProps) {
     setError('');
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}${window.location.pathname}`,
-      });
-      if (error) { setError(error.message); setLoading(false); return; }
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/forgot-password`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({
+            email: forgotEmail,
+            redirectTo: `${window.location.origin}${window.location.pathname}`,
+          }),
+        }
+      );
       setForgotSent(true);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
