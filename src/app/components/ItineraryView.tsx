@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { projectId } from '/utils/supabase/info';
-import logoImg from '../../assets/logo.png';
+import logoImg from '../../assets/pin-logo.png';
 import headerImg from '../../assets/header.jpg';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
