@@ -3,8 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { MapPin, Shuffle } from 'lucide-react';
+import { Shuffle } from 'lucide-react';
 import headerImg from '../../assets/header.jpg';
 import logoImg from '../../assets/pin-logo.png';
 
@@ -26,11 +25,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/generate-username`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            Authorization: `Bearer ${publicAnonKey}`,
           },
         }
       );
+
       const data = await response.json();
+
       if (response.ok) {
         setUsername(data.username);
       }
@@ -51,7 +52,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
+            Authorization: `Bearer ${publicAnonKey}`,
           },
           body: JSON.stringify({ email, password, username }),
         }
@@ -60,7 +61,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Signup error:', data);
         setError(data.error || `Sign up failed: ${response.status} ${response.statusText}`);
         setLoading(false);
         return;
@@ -110,104 +110,125 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
   return (
     <div
-      className="size-full flex relative"
-      style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      className="min-h-screen w-full relative flex flex-col overflow-hidden"
+      style={{
+        backgroundImage: `url(${headerImg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-900/65" />
+      {/* Background overlay */}
+      <div className="absolute inset-0 bg-black/55" />
 
-      {/* Left panel */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12 lg:p-16 gap-3 text-center">
-        </div>
-        <p className="absolute bottom-10 text-white/40 text-sm">© 2026 Chloe Inocencio. All Rights Reserved.</p>
-      </div>
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/30" />
 
-      {/* Right panel */}
-      <div className="relative z-10 w-[460px] flex items-center justify-center p-8">
-        <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 space-y-5 shadow-2xl">
-          <div>
-            <h1 className="text-2xl font-bold text-white">
+      {/* Center content */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[430px] rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
+          {/* Logo + title */}
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 border border-white/20 shadow-lg backdrop-blur-xl">
+              <img
+                src={logoImg}
+                alt="WhereTwo logo"
+                className="h-10 w-10 object-contain"
+              />
+            </div>
+
+            <h1 className="text-[28px] font-semibold tracking-tight text-white">
               {isSignUp ? 'Create account' : 'Welcome back'}
             </h1>
-            <p className="text-white/50 text-sm mt-1">
-              {isSignUp ? 'Start planning your next adventure' : 'Sign in to continue planning'}
+
+            <p className="mt-2 text-sm text-white/55">
+              {isSignUp ? 'Start planning together' : 'Sign in to continue'}
             </p>
           </div>
 
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             {isSignUp && (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex gap-2">
                   <Input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                    onChange={(e) =>
+                      setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                    }
                     required
                     placeholder="Username"
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+                    className="h-12 flex-1 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
                   />
+
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={generateRandomUsername}
-                    className="text-white/60 hover:text-white hover:bg-white/10 border border-white/20"
+                    className="h-12 w-12 rounded-2xl text-white/65 hover:text-white hover:bg-white/15 border border-white/15"
                   >
-                    <Shuffle className="w-4 h-4" />
+                    <Shuffle className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="text-white/35 text-xs">Lowercase letters, numbers, and dashes only</p>
+
+                <p className="text-xs text-white/35">
+                  Lowercase letters, numbers, and dashes only
+                </p>
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="Email"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
-              />
-            </div>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="Email"
+              className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+            />
 
-            <div className="space-y-1.5">
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Password"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
-              />
-            </div>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Password"
+              className="h-12 rounded-2xl bg-white/12 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+            />
 
             {error && (
-              <div className="text-sm text-red-300 bg-red-900/30 p-3 rounded-lg border border-red-500/30">
+              <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
                 {error}
               </div>
             )}
 
             <Button
               type="submit"
-              className="w-full h-11 text-sm font-semibold bg-white text-gray-900 hover:bg-white/90"
               disabled={loading}
+              className="h-12 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
             >
-              {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+              {loading ? 'Loading' : isSignUp ? 'Create Account' : 'Sign In'}
             </Button>
           </form>
 
-          <div className="text-center">
+          <div className="pt-6 text-center">
             <button
               type="button"
-              onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-              className="text-sm text-white/50 hover:text-white/80 transition-colors"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+              }}
+              className="text-sm text-white/55 hover:text-white transition-colors"
             >
-              {isSignUp ? 'Already have an account? Sign in ' : "Don't have an account? Sign up "}
+              {isSignUp ? 'Sign in instead' : 'Create an account'}
             </button>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
+        © {new Date().getFullYear()} WhereTwo. All rights reserved.
+      </footer>
     </div>
   );
 }
