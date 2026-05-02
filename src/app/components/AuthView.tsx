@@ -126,13 +126,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
       {/* Center content */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-[430px] rounded-[2rem] bg-white/12 border border-white/20 shadow-2xl backdrop-blur-2xl px-8 py-9">
+          
           {/* Logo + title */}
           <div className="flex flex-col items-center text-center mb-8">
             <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 border border-white/20 shadow-lg backdrop-blur-xl">
               <img
                 src={logoImg}
                 alt="WhereTwo logo"
-                className="h-10 w-10 object-contain"
               />
             </div>
 
@@ -140,9 +140,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
               {isSignUp ? 'Create account' : 'Welcome back'}
             </h1>
 
-            <p className="mt-2 text-sm text-white/55">
-              {isSignUp ? 'Start planning together' : 'Sign in to continue'}
-            </p>
           </div>
 
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
@@ -227,7 +224,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
       {/* Footer */}
       <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
-        © {new Date().getFullYear()} WhereTwo. All rights reserved.
+        © {new Date().getFullYear()} Chloe Inocencio. All rights reserved.
       </footer>
     </div>
   );
