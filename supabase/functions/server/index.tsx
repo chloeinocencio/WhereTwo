@@ -98,7 +98,6 @@ app.post("/make-server-9b7ec865/signup", async (c) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Check if username already exists
     const existingUsername = await kv.get(`username:${username}`);
     if (existingUsername) {
       return c.json({ error: "Username already taken" }, 400);
@@ -108,8 +107,7 @@ app.post("/make-server-9b7ec865/signup", async (c) => {
       email,
       password,
       user_metadata: { username },
-      // Automatically confirm the user's email since an email server hasn't been configured.
-      email_confirm: true
+      email_confirm: false,
     });
 
     if (error) {
@@ -121,34 +119,204 @@ app.post("/make-server-9b7ec865/signup", async (c) => {
     await kv.set(`username:${username}`, { userId: data.user.id });
     await kv.set(`user:${data.user.id}:username`, username);
 
-    // Send welcome email
+    // Generate and store 6-digit OTP (15-minute expiry)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await kv.set(`email-verification:${data.user.id}`, { code: otp, expiresAt, email });
+
     await sendEmail(
       email,
-      'Welcome to WhereTwo!',
+      'Verify your WhereTwo account',
       `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #276fbf;">Welcome to WhereTwo!</h1>
+          <h1 style="color: #276fbf;">Verify your email</h1>
           <p>Hi <strong>@${username}</strong>,</p>
-          <p>Your account has been successfully created. You can now start planning your travel itineraries with AI-powered recommendations!</p>
-          <h2 style="color: #276fbf;">What you can do:</h2>
-          <ul>
-            <li>Create personalized travel itineraries</li>
-            <li>Get AI-generated activity recommendations</li>
-            <li>Invite collaborators to plan trips together</li>
-            <li>Edit and customize your plans</li>
-          </ul>
-          <p>Happy travels!</p>
-          <p style="color: #666; font-size: 12px; margin-top: 40px;">
-            This is an automated email from WhereTwo. Please do not reply to this email.
-          </p>
+          <p>Enter the code below to verify your WhereTwo account. It expires in <strong>15 minutes</strong>.</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <div style="display: inline-block; background: #f6f4f3; border: 2px solid #276fbf; border-radius: 12px; padding: 20px 40px;">
+              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #183059;">${otp}</span>
+            </div>
+          </div>
+          <p style="color: #666;">If you didn't create a WhereTwo account, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
         </div>
       `
     );
 
-    return c.json({ user: data.user });
+    return c.json({ requiresVerification: true, userId: data.user.id });
   } catch (error) {
     console.log(`Sign up error during request processing: ${error}`);
     return c.json({ error: "Failed to create user" }, 500);
+  }
+});
+
+app.post("/make-server-9b7ec865/verify-email", async (c) => {
+  try {
+    const { userId, code } = await c.req.json();
+    if (!userId || !code) return c.json({ error: "userId and code are required" }, 400);
+
+    const verification = await kv.get(`email-verification:${userId}`);
+    if (!verification) return c.json({ error: "Verification code not found or already used" }, 400);
+    if (new Date() > new Date(verification.expiresAt)) {
+      await kv.del(`email-verification:${userId}`);
+      return c.json({ error: "Verification code has expired — please request a new one" }, 400);
+    }
+    if (verification.code !== code) return c.json({ error: "Incorrect code. Please try again." }, 400);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, { email_confirm: true });
+    if (error) return c.json({ error: "Failed to verify account" }, 500);
+
+    await kv.del(`email-verification:${userId}`);
+
+    const username = await kv.get(`user:${userId}:username`) || 'traveler';
+    await sendEmail(
+      verification.email,
+      'Welcome to WhereTwo!',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">You're all set, @${username}!</h1>
+          <p>Your email has been verified. Start planning your next adventure on WhereTwo.</p>
+          <p>Happy travels!</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Verify email error: ${error}`);
+    return c.json({ error: "Failed to verify email" }, 500);
+  }
+});
+
+app.post("/make-server-9b7ec865/resend-verification", async (c) => {
+  try {
+    const { userId } = await c.req.json();
+    if (!userId) return c.json({ error: "userId is required" }, 400);
+
+    const existing = await kv.get(`email-verification:${userId}`);
+    if (!existing) return c.json({ error: "No pending verification found" }, 400);
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await kv.set(`email-verification:${userId}`, { code: otp, expiresAt, email: existing.email });
+
+    const username = await kv.get(`user:${userId}:username`) || 'traveler';
+    await sendEmail(
+      existing.email,
+      'Your new WhereTwo verification code',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">New verification code</h1>
+          <p>Hi <strong>@${username}</strong>, here is your new code:</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <div style="display: inline-block; background: #f6f4f3; border: 2px solid #276fbf; border-radius: 12px; padding: 20px 40px;">
+              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #183059;">${otp}</span>
+            </div>
+          </div>
+          <p style="color: #666;">Expires in 15 minutes.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Resend verification error: ${error}`);
+    return c.json({ error: "Failed to resend code" }, 500);
+  }
+});
+
+app.post("/make-server-9b7ec865/account/forgot-password", async (c) => {
+  try {
+    const { email, redirectTo } = await c.req.json();
+    if (!email) return c.json({ error: "Email is required" }, 400);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: redirectTo || 'https://chloeinocencio.github.io/WhereTwo/' },
+    });
+
+    // Always return success to avoid email enumeration
+    if (error || !data?.properties?.action_link) return c.json({ success: true });
+
+    await sendEmail(
+      email,
+      'Reset your WhereTwo password',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">Reset your password</h1>
+          <p>We received a request to reset your WhereTwo password. Click the button below to choose a new one.</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <a href="${data.properties.action_link}" style="display: inline-block; background: #276fbf; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+              Reset Password
+            </a>
+          </div>
+          <p style="color: #666;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Forgot password error: ${error}`);
+    return c.json({ error: "Failed to process request" }, 500);
+  }
+});
+
+app.post("/make-server-9b7ec865/account/forgot-username", async (c) => {
+  try {
+    const { email } = await c.req.json();
+    if (!email) return c.json({ error: "Email is required" }, 400);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    // Always respond success to avoid email enumeration
+    if (!user) return c.json({ success: true });
+
+    const username = await kv.get(`user:${user.id}:username`) || user.user_metadata?.username;
+    if (!username) return c.json({ success: true });
+
+    await sendEmail(
+      email,
+      'Your WhereTwo username',
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #276fbf;">Your WhereTwo username</h1>
+          <p>Here is the username associated with this email address:</p>
+          <div style="margin: 32px 0; text-align: center;">
+            <div style="display: inline-block; background: #f6f4f3; border: 2px solid #276fbf; border-radius: 12px; padding: 16px 40px;">
+              <span style="font-size: 28px; font-weight: bold; color: #183059;">@${username}</span>
+            </div>
+          </div>
+          <p style="color: #666;">If you didn't request this, you can safely ignore this email.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 40px;">This is an automated email from WhereTwo. Please do not reply.</p>
+        </div>
+      `
+    );
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Forgot username error: ${error}`);
+    return c.json({ error: "Failed to process request" }, 500);
   }
 });
 
@@ -625,6 +793,33 @@ app.post("/make-server-9b7ec865/itineraries/:id/invite", async (c) => {
   }
 });
 
+app.post("/make-server-9b7ec865/itineraries/:id/leave", async (c) => {
+  try {
+    const user = await getAuthUser(c.req.header('Authorization'));
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    const itineraryId = c.req.param('id');
+    const itinerary = await kv.get(`itinerary:${itineraryId}`);
+
+    if (!itinerary) return c.json({ error: "Itinerary not found" }, 404);
+    if (itinerary.ownerId === user.id) return c.json({ error: "Owner cannot leave their own itinerary" }, 400);
+
+    const isCollaborator = itinerary.collaborators.some((c: any) => c.userId === user.id);
+    if (!isCollaborator) return c.json({ error: "You are not a collaborator on this itinerary" }, 400);
+
+    itinerary.collaborators = itinerary.collaborators.filter((c: any) => c.userId !== user.id);
+    itinerary.updatedAt = new Date().toISOString();
+
+    await kv.set(`itinerary:${itineraryId}`, itinerary);
+    await kv.del(`user:${user.id}:itinerary:${itineraryId}`);
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Leave itinerary error: ${error}`);
+    return c.json({ error: "Failed to leave itinerary" }, 500);
+  }
+});
+
 app.post("/make-server-9b7ec865/itineraries/:id/generate", async (c) => {
   try {
     const user = await getAuthUser(c.req.header('Authorization'));
@@ -717,10 +912,10 @@ async function generateOptimalPlan(
     }[travelStyle] || '';
 
     const paceContext = {
-      'relaxed': `\nPACE: Relaxed pace. Plan ONLY 1-2 major activities per day with LOTS of downtime. Include longer meal times, coffee breaks, and time to simply enjoy the atmosphere. Each activity should have 3-4 hours allocated. Leave afternoon/evening open for spontaneous exploration.`,
-      'moderate': `\nPACE: Moderate pace. Plan 3 activities per day (morning, afternoon, evening) with reasonable breaks between. Balance sightseeing with meals and rest. This is a comfortable pace that doesn't feel rushed.`,
-      'packed': `\nPACE: Packed schedule. Plan 4-5 activities per day to maximize sightseeing. Back-to-back experiences with minimal downtime. Quick meals between attractions. This traveler wants to see and do as much as possible.`
-    }[pace] || '';
+      'leisurely': `\nPACE: Leisurely pace. Plan ONLY 2 activities per day maximum — one morning, one afternoon. Include long, leisurely meals, coffee breaks, and plenty of time to soak in the atmosphere. Each activity should have 3-4 hours allocated with no evening commitments. Leave plenty of room for spontaneous wandering.`,
+      'balanced': `\nPACE: Balanced pace. Plan exactly 3 activities per day (morning, afternoon, evening) with comfortable breaks in between. Balance sightseeing with meals and rest. A comfortable rhythm that doesn't feel rushed.`,
+      'immersive': `\nPACE: Immersive/packed schedule. Plan 5 activities per day to maximize experiences — early morning, late morning, lunch, afternoon, evening. Back-to-back experiences with minimal downtime. Quick meals between activities. This traveler wants to see and do as much as possible each day.`
+    }[pace] || `\nPACE: Balanced pace. Plan exactly 3 activities per day (morning, afternoon, evening) with comfortable breaks in between.`;
 
     const prompt = `Create a HIGHLY DETAILED ${days}-day travel itinerary for ${location}${area ? ` in the ${area} area` : ''}.
 ${interestContext}${styleContext}${paceContext}
@@ -728,7 +923,7 @@ ${interestContext}${styleContext}${paceContext}
 CRITICAL RULES:
 - The traveler is staying in the ${base} neighborhood. All activities must be optimized around this base location.
 - NO DUPLICATE VENUES - Each location should appear only ONCE across all ${days} days
-- NO REPEATED ACTIVITIES - Provide ${days * 3} completely unique experiences
+- NO REPEATED ACTIVITIES - Provide ${pace === 'leisurely' ? days * 2 : pace === 'immersive' ? days * 5 : days * 3} completely unique experiences
 
 MANDATORY REQUIREMENTS FOR EACH ACTIVITY:
 

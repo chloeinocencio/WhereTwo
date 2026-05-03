@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { projectId } from '/utils/supabase/info';
-import logoImg from '../../assets/daily.png';
+import logoImg from '../../assets/logo.png';
 import headerImg from '../../assets/header.jpg';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, MapPin, Calendar, Users, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, UserPlus, LogOut, Edit2, Check, X, Clock, Banknote, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import {
@@ -19,13 +19,15 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -58,6 +60,15 @@ const formatDescription = (description: string) => {
   sections.main = mainText.join('. ');
   return sections;
 };
+
+function DroppableDay({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`space-y-4 min-h-[60px] rounded-lg transition-colors ${isOver ? 'bg-primary/5 ring-2 ring-primary/20' : ''}`}>
+      {children}
+    </div>
+  );
+}
 
 interface SortableActivityProps {
   activity: any;
@@ -184,7 +195,7 @@ function SortableActivity({
                   )}
                   {formatted.price && (
                     <div className="flex items-start gap-2 text-xs text-foreground/70 bg-muted/50 p-2 rounded-md">
-                      <DollarSign className="w-4 h-4 mt-0.5 flex-shrink-0 text-secondary" />
+                      <Banknote className="w-4 h-4 mt-0.5 flex-shrink-0 text-secondary" />
                       <span>{formatted.price}</span>
                     </div>
                   )}
@@ -230,6 +241,9 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [editedActivity, setEditedActivity] = useState<any>(null);
   const [addingToDayIndex, setAddingToDayIndex] = useState<number | null>(null);
   const [newActivity, setNewActivity] = useState({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
+  const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
+  const [editedDayTitle, setEditedDayTitle] = useState('');
+  const [activeActivity, setActiveActivity] = useState<any>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -358,6 +372,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     await savePlan(updatedPlan);
   };
 
+  const handleSaveDayTitle = async () => {
+    if (editingDayIndex === null) return;
+    const updatedPlan = itinerary.plan.map((day: any, i: number) =>
+      i !== editingDayIndex ? day : { ...day, title: editedDayTitle.trim() || `Day ${day.day}` }
+    );
+    setItinerary({ ...itinerary, plan: updatedPlan });
+    setEditingDayIndex(null);
+    await savePlan(updatedPlan);
+  };
+
   const handleDeleteDay = async (dayIndex: number) => {
     if (!confirm('Remove this entire day from your itinerary?')) return;
     const filtered = itinerary.plan.filter((_: any, i: number) => i !== dayIndex);
@@ -366,18 +390,74 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     await savePlan(renumbered);
   };
 
-  const handleDragEnd = async (event: DragEndEvent, dayIndex: number) => {
+  const handleLeaveItinerary = async () => {
+    if (!confirm('Leave this itinerary? You will lose access unless re-invited.')) return;
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/leave`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+      );
+      if (response.ok) onBack();
+      else {
+        const data = await response.json();
+        alert(data.error || 'Failed to leave itinerary');
+      }
+    } catch {
+      alert('Failed to leave itinerary');
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const id = String(event.active.id);
+    for (const day of itinerary.plan) {
+      const found = day.activities.find((a: any) => a.id === id);
+      if (found) { setActiveActivity(found); break; }
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const activities = itinerary.plan[dayIndex].activities;
-    const oldIndex = activities.findIndex((a: any) => a.id === active.id);
-    const newIndex = activities.findIndex((a: any) => a.id === over.id);
-    const reordered = arrayMove(activities, oldIndex, newIndex);
-    const updatedPlan = itinerary.plan.map((day: any, i: number) =>
-      i !== dayIndex ? day : { ...day, activities: reordered }
+    setActiveActivity(null);
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    const sourceDayIndex = itinerary.plan.findIndex((day: any) =>
+      day.activities.some((a: any) => a.id === activeId)
     );
-    setItinerary({ ...itinerary, plan: updatedPlan });
-    await savePlan(updatedPlan);
+    if (sourceDayIndex === -1) return;
+
+    let targetDayIndex: number;
+    let insertBeforeId: string | null = null;
+
+    if (overId.startsWith('day-drop-')) {
+      targetDayIndex = parseInt(overId.replace('day-drop-', ''));
+    } else {
+      targetDayIndex = itinerary.plan.findIndex((day: any) =>
+        day.activities.some((a: any) => a.id === overId)
+      );
+      if (targetDayIndex === -1) return;
+      insertBeforeId = overId;
+    }
+
+    if (sourceDayIndex === targetDayIndex && activeId === overId) return;
+
+    const plan = itinerary.plan.map((day: any) => ({ ...day, activities: [...day.activities] }));
+    const sourceActivities = plan[sourceDayIndex].activities;
+    const actIdx = sourceActivities.findIndex((a: any) => a.id === activeId);
+    const [activity] = sourceActivities.splice(actIdx, 1);
+
+    const targetActivities = plan[targetDayIndex].activities;
+    if (insertBeforeId) {
+      const targetIdx = targetActivities.findIndex((a: any) => a.id === insertBeforeId);
+      targetActivities.splice(targetIdx === -1 ? targetActivities.length : targetIdx, 0, activity);
+    } else {
+      targetActivities.push(activity);
+    }
+
+    setItinerary({ ...itinerary, plan });
+    await savePlan(plan);
   };
 
   if (loading) {
@@ -435,6 +515,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 )}
               </div>
             </div>
+            {!isOwner && (
+              <Button
+                variant="ghost"
+                onClick={handleLeaveItinerary}
+                className="bg-white/10 hover:bg-red-500/30 text-white border border-white/20 hover:border-red-400/50 shadow-md"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Leave Trip
+              </Button>
+            )}
             {isOwner && (
               <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
                 <DialogTrigger asChild>
@@ -491,27 +581,51 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
           </CardContent>
         </Card>
 
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
         <div className="space-y-6">
           {itinerary.plan.map((day: any, dayIndex: number) => (
             <Card key={day.day} className="border-2 shadow-md hover:shadow-lg transition-shadow">
               <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-2xl font-bold text-foreground">Day {day.day}</CardTitle>
+                  <div className="flex-1 mr-2">
+                    {editingDayIndex === dayIndex ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editedDayTitle}
+                          onChange={(e) => setEditedDayTitle(e.target.value)}
+                          className="text-xl font-bold h-9 max-w-xs"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveDayTitle();
+                            if (e.key === 'Escape') setEditingDayIndex(null);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" onClick={handleSaveDayTitle} className="hover:bg-primary/10 hover:text-primary">
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditingDayIndex(null)} className="hover:bg-muted">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <CardTitle className="text-2xl font-bold text-foreground">{day.title || `Day ${day.day}`}</CardTitle>
+                    )}
                     <CardDescription className="text-base mt-1">{day.date}</CardDescription>
                   </div>
                   <div className="flex gap-1">
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => {
-                        setAddingToDayIndex(dayIndex);
-                        setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
-                      }}
+                      onClick={() => { setEditingDayIndex(dayIndex); setEditedDayTitle(day.title || `Day ${day.day}`); }}
                       className="hover:bg-primary/10 hover:text-primary text-muted-foreground"
-                      title="Add activity"
+                      title="Edit day title"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button
                       size="icon"
@@ -526,37 +640,52 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event) => handleDragEnd(event, dayIndex)}
+                <SortableContext
+                  items={day.activities.map((a: any) => a.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <SortableContext
-                    items={day.activities.map((a: any) => a.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-4">
-                      {day.activities.map((activity: any) => (
-                        <SortableActivity
-                          key={activity.id}
-                          activity={activity}
-                          dayIndex={dayIndex}
-                          editingActivity={editingActivity}
-                          editedActivity={editedActivity}
-                          onEdit={handleEditActivity}
-                          onDelete={handleDeleteActivity}
-                          onSave={handleSaveActivity}
-                          onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
-                          onEditedChange={setEditedActivity}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                  <DroppableDay id={`day-drop-${dayIndex}`}>
+                    {day.activities.map((activity: any) => (
+                      <SortableActivity
+                        key={activity.id}
+                        activity={activity}
+                        dayIndex={dayIndex}
+                        editingActivity={editingActivity}
+                        editedActivity={editedActivity}
+                        onEdit={handleEditActivity}
+                        onDelete={handleDeleteActivity}
+                        onSave={handleSaveActivity}
+                        onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
+                        onEditedChange={setEditedActivity}
+                      />
+                    ))}
+                  </DroppableDay>
+                </SortableContext>
+                <button
+                  onClick={() => {
+                    setAddingToDayIndex(dayIndex);
+                    setNewActivity({ title: '', description: '', timeSlot: '', type: 'Custom', duration: '', notes: '' });
+                  }}
+                  className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Activity
+                </button>
               </CardContent>
             </Card>
           ))}
         </div>
+          <DragOverlay>
+            {activeActivity ? (
+              <div className="border-2 border-primary bg-card rounded-xl px-5 py-3 shadow-xl opacity-90">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-2 font-semibold">{activeActivity.timeSlot}</Badge>
+                  <span className="font-bold text-foreground">{activeActivity.title}</span>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </main>
 
       <Dialog open={addingToDayIndex !== null} onOpenChange={(open) => { if (!open) setAddingToDayIndex(null); }}>
