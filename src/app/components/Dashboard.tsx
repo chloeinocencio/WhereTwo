@@ -465,235 +465,357 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                   New Itinerary
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Plan Your Trip</DialogTitle>
-                  <DialogDescription>
-                    {createStep === 1 ? "Tell us where you're going and when." : 'Personalize your experience.'}
-                  </DialogDescription>
-                </DialogHeader>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Plan Your Trip</DialogTitle>
+                <DialogDescription>
+                  {createStep === 1 ? 'Tell us where you\'re going and when.' : 'Personalize your experience.'}
+                </DialogDescription>
+              </DialogHeader>
 
-                <div className="flex items-center gap-2 -mt-1 mb-1">
-                  <div className={`h-1 flex-1 rounded-full ${createStep >= 1 ? 'bg-primary' : 'bg-muted'}`} />
-                  <div className={`h-1 flex-1 rounded-full ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
-                </div>
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 -mt-1 mb-1">
+                <div className={`h-1 flex-1 rounded-full ${createStep >= 1 ? 'bg-primary' : 'bg-muted'}`} />
+                <div className={`h-1 flex-1 rounded-full ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+              </div>
 
-                <form onSubmit={handleCreateItinerary}>
-                  {createStep === 1 ? (
-                    <div className="flex flex-col gap-5 min-h-[440px]">
-                      <div className="space-y-2">
-                        <Label htmlFor="location" className="text-base">Where are you going?</Label>
-                        <div className="relative">
-                          <Input
-                            ref={locationInputRef}
-                            id="location"
-                            value={newItinerary.location}
-                            onChange={(e) => handleLocationChange(e.target.value)}
-                            onFocus={() => { if (newItinerary.location) setShowLocationSuggestions(true); }}
-                            onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
-                            disabled={isCreating}
-                            placeholder="Type any city..."
-                            className="text-base"
-                          />
-                          {locationLoading && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-2.5 text-sm text-slate-500">
-                              Searching...
-                            </div>
-                          )}
-                          {!locationLoading && showLocationSuggestions && locationSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                              {locationSuggestions.map((dest, index) => (
-                                <button
-                                  key={index}
-                                  type="button"
-                                  onClick={() => handleLocationSelect(dest.full, dest.boundingbox)}
-                                  className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 last:border-0"
-                                >
-                                  <MapPin className="w-4 h-4 text-slate-400" />
-                                  <div>
-                                    <div className="font-medium text-slate-900">{dest.city}</div>
-                                    <div className="text-xs text-slate-500">{dest.country}</div>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">You can type any city in the world</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="base" className="text-base">Where are you staying?</Label>
-                        <div className="relative">
-                          <Input
-                            ref={baseInputRef}
-                            id="base"
-                            value={newItinerary.base}
-                            onChange={(e) => handleBaseChange(e.target.value)}
-                            onFocus={() => { if (newItinerary.base.trim()) fetchNeighborhoods(newItinerary.base); }}
-                            onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
-                            disabled={isCreating}
-                            placeholder="Neighborhood or hotel area"
-                            className="text-base"
-                          />
-                          {baseLoading && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-2.5 text-sm text-slate-500">
-                              Searching...
-                            </div>
-                          )}
-                          {!baseLoading && showBaseSuggestions && baseSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto">
-                              {baseSuggestions.map((neighborhood, index) => (
-                                <button
-                                  key={index}
-                                  type="button"
-                                  onClick={() => handleBaseSelect(neighborhood)}
-                                  className="w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-900 border-b border-slate-100 last:border-0"
-                                >
-                                  {neighborhood}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">This helps us plan activities nearby</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-base">When are you traveling?</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={`w-full justify-start text-left font-normal h-11 ${!dateRange.from && 'text-muted-foreground'}`}
-                              disabled={isCreating}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {dateRange.from ? (
-                                dateRange.to ? (
-                                  <>
-                                    {format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}
-                                    <span className="ml-2 text-xs text-muted-foreground">
-                                      ({differenceInDays(dateRange.to, dateRange.from) + 1} days)
-                                    </span>
-                                  </>
-                                ) : (
-                                  format(dateRange.from, 'LLL dd, y')
-                                )
-                              ) : (
-                                <span>Pick your travel dates</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              initialFocus
-                              mode="range"
-                              defaultMonth={dateRange.from}
-                              selected={dateRange}
-                              onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
-                              numberOfMonths={1}
-                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <p className="text-xs text-slate-500">Select your check-in and check-out dates</p>
-                      </div>
-
-                      {stepError && (
-                        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2.5">
-                          {stepError}
-                        </div>
-                      )}
-
-                      <Button type="button" className="w-full h-11 text-base mt-auto" onClick={handleAdvanceStep}>
-                        Continue
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4 min-h-[440px]">
-                      <div className="space-y-2">
-                        <Label className="text-base">What experiences interest you?</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {ACTIVITY_INTERESTS.map((interest) => {
-                            const selected = selectedInterests.includes(interest.id);
-                            return (
+              <form onSubmit={handleCreateItinerary}>
+                {createStep === 1 ? (
+                  <div className="flex flex-col gap-5 min-h-[440px]">
+                    <div className="space-y-2">
+                      <Label htmlFor="location" className="text-base">Where are you going?</Label>
+                      <div className="relative">
+                        <Input
+                          ref={locationInputRef}
+                          id="location"
+                          value={newItinerary.location}
+                          onChange={(e) => handleLocationChange(e.target.value)}
+                          onFocus={() => {
+                            if (newItinerary.location) setShowLocationSuggestions(true);
+                          }}
+                          onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
+                          disabled={isCreating}
+                          placeholder="Type any city..."
+                          className="text-base"
+                        />
+                        {locationLoading && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-2.5 text-sm text-slate-500">
+                            Searching...
+                          </div>
+                        )}
+                        {!locationLoading && showLocationSuggestions && locationSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                            {locationSuggestions.map((dest, index) => (
                               <button
-                                key={interest.id}
+                                key={index}
                                 type="button"
-                                onClick={() => toggleInterest(interest.id)}
-                                className={`flex items-center justify-center text-center px-4 py-2.5 rounded-full border-2 text-sm font-medium tracking-tight transition-all ${
-                                  selected
-                                    ? 'border-primary bg-primary/5 text-primary shadow-sm'
-                                    : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
-                                }`}
+                                onClick={() => handleLocationSelect(dest.full, dest.boundingbox)}
+                                className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100 last:border-0"
                               >
-                                {interest.label}
+                                <MapPin className="w-4 h-4 text-slate-400" />
+                                <div>
+                                  <div className="font-medium text-slate-900">{dest.city}</div>
+                                  <div className="text-xs text-slate-500">{dest.country}</div>
+                                </div>
                               </button>
-                            );
-                          })}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
+                      <p className="text-xs text-slate-500">You can type any city in the world</p>
+                    </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-base">How would you like to pace your days?</Label>
-                        <div className="space-y-2">
-                          {PACE_OPTIONS.map((option) => (
+                    <div className="space-y-2">
+                      <Label htmlFor="base" className="text-base">Where are you staying?</Label>
+                      <div className="relative">
+                        <Input
+                          ref={baseInputRef}
+                          id="base"
+                          value={newItinerary.base}
+                          onChange={(e) => handleBaseChange(e.target.value)}
+                          onFocus={() => { if (newItinerary.base.trim()) fetchNeighborhoods(newItinerary.base); }}
+                          onBlur={() => setTimeout(() => setShowBaseSuggestions(false), 200)}
+                          disabled={isCreating}
+                          placeholder="Neighborhood or hotel area"
+                          className="text-base"
+                        />
+                        {baseLoading && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg px-4 py-2.5 text-sm text-slate-500">
+                            Searching...
+                          </div>
+                        )}
+                        {!baseLoading && showBaseSuggestions && baseSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto" onMouseDown={(e) => e.preventDefault()}>
+                            {baseSuggestions.map((neighborhood, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => handleBaseSelect(neighborhood)}
+                                className="w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-900 border-b border-slate-100 last:border-0"
+                              >
+                                {neighborhood}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">This helps us plan activities nearby</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-base">When are you traveling?</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full justify-start text-left font-normal h-11 ${
+                              !dateRange.from && 'text-muted-foreground'
+                            }`}
+                            disabled={isCreating}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange.from ? (
+                              dateRange.to ? (
+                                <>
+                                  {format(dateRange.from, 'LLL dd, y')} - {format(dateRange.to, 'LLL dd, y')}
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({differenceInDays(dateRange.to, dateRange.from) + 1} days)
+                                  </span>
+                                </>
+                              ) : (
+                                format(dateRange.from, 'LLL dd, y')
+                              )
+                            ) : (
+                              <span>Pick your travel dates</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange.from}
+                            selected={dateRange}
+                            onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
+                            numberOfMonths={1}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-slate-500">Select your check-in and check-out dates</p>
+                    </div>
+
+                    <Button type="button" className="w-full h-11 text-base mt-auto" onClick={handleAdvanceStep}>
+                      Continue
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 min-h-[440px]">
+                    <div className="space-y-2">
+                      <Label className="text-base">What experiences interest you?</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {ACTIVITY_INTERESTS.map((interest) => {
+                          const selected = selectedInterests.includes(interest.id);
+                          return (
                             <button
-                              key={option.id}
+                              key={interest.id}
                               type="button"
-                              onClick={() => setSelectedPace(option.id as 'leisurely' | 'balanced' | 'immersive')}
-                              className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
-                                selectedPace === option.id
-                                  ? 'border-primary bg-primary/5 shadow-sm'
-                                  : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                              onClick={() => toggleInterest(interest.id)}
+                              className={`inline-flex items-center justify-center px-4 py-2.5 rounded-full border-2 text-sm font-medium tracking-tight transition-all whitespace-nowrap ${
+                                selected
+                                  ? 'border-primary bg-primary/5 text-primary shadow-sm'
+                                  : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
                               }`}
                             >
-                              <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>
-                                {option.label}
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                {option.description}
-                              </div>
+                              {interest.label}
                             </button>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-
-                      {stepError && (
-                        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2.5">
-                          {stepError}
-                        </div>
-                      )}
-
-                      <div className="flex gap-2 mt-auto">
-                        <Button type="button" variant="outline" onClick={() => { setCreateStep(1); setStepError(''); }} className="gap-1.5" disabled={isCreating}>
-                          <ArrowLeft className="w-4 h-4" />
-                          Back
-                        </Button>
-                        <Button type="submit" className="flex-1 h-11 text-base" disabled={isCreating}>
-                          {isCreating ? (
-                            <>
-                              <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2" />
-                              Creating your trip...
-                            </>
-                          ) : (
-                            'Generate Itinerary'
-                          )}
-                        </Button>
-                      </div>
-                      {isCreating && (
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">Planning your perfect trip</p>
-                          <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
-                        </div>
-                      )}
                     </div>
-                  )}
-                </form>
-              </DialogContent>
-            </Dialog>
+
+                    <div className="space-y-2">
+                      <Label className="text-base">How would you like to pace your days?</Label>
+                      <div className="space-y-2">
+                        {PACE_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSelectedPace(option.id as 'leisurely' | 'balanced' | 'immersive')}
+                            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                              selectedPace === option.id
+                                ? 'border-primary bg-primary/5 shadow-sm'
+                                : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>
+                              {option.label}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                              {option.description}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-auto">
+                      <Button type="button" variant="outline" onClick={() => setCreateStep(1)} className="gap-1.5" disabled={isCreating}>
+                        <ArrowLeft className="w-4 h-4" />
+                        Back
+                      </Button>
+                      <Button type="submit" className="flex-1 h-11 text-base" disabled={isCreating}>
+                        {isCreating ? (
+                          <>
+                            <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent mr-2"></div>
+                            Creating your trip...
+                          </>
+                        ) : (
+                          'Generate Itinerary'
+                        )}
+                      </Button>
+                    </div>
+                    {isCreating && (
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground">Planning your perfect trip</p>
+                        <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </form>
+            </DialogContent>
+          </Dialog>
           </div>
+
+          <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Account Settings</DialogTitle>
+                <DialogDescription>
+                  Manage your account information and preferences
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Username</Label>
+                    {editingUsername ? (
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                          placeholder="wheretwo-user-0"
+                          disabled={savingChanges}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={handleSaveUsername}
+                          disabled={savingChanges}
+                        >
+                          <Save className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingUsername(false);
+                            setNewUsername('');
+                          }}
+                          disabled={savingChanges}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-base font-semibold">@{userName}</p>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingUsername(true);
+                            setNewUsername(userName);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                    {editingEmail ? (
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          disabled={savingChanges}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={handleSaveEmail}
+                          disabled={savingChanges}
+                        >
+                          <Save className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingEmail(false);
+                            setNewEmail('');
+                          }}
+                          disabled={savingChanges}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-base font-semibold">{session.user.email}</p>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingEmail(true);
+                            setNewEmail(session.user.email || '');
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Danger Zone</h3>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                      <h4 className="text-sm font-semibold text-destructive mb-2">Delete Account</h4>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Permanently delete your account and all associated data. This action cannot be undone.
+                      </p>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteAccount}
+                        className="w-full"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Account
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {loading ? (
