@@ -286,7 +286,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           <img
             src={logoImg}
             alt="WhereTwo"
-            className="mx-auto mb-7 w-40 h-40 object-contain drop-shadow-2xl"
+            className="mx-auto mb-7 w-60 h-60 object-contain drop-shadow-2xl"
           />
 
           {forgotMode ? (
