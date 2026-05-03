@@ -282,136 +282,69 @@ export function AuthView({ onLogin }: AuthViewProps) {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_42%)]" />
 
       <main className="relative z-10 flex-1 flex items-center justify-center px-5 py-8">
-        <div className="flex w-full max-w-[420px] flex-col items-center">
+        <div className="w-full max-w-[420px] rounded-[2.25rem] border border-white/20 bg-white/[0.11] px-7 py-8 shadow-2xl shadow-black/35 backdrop-blur-2xl">
           <img
             src={logoImg}
             alt="WhereTwo"
-            className="w-52 h-52 object-contain drop-shadow-2xl"
+            className="mx-auto mb-7 w-40 h-40 object-contain drop-shadow-2xl"
           />
 
-          <div className="-mt-5 w-full rounded-[2.25rem] border border-white/20 bg-white/[0.11] px-7 py-7 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-            {forgotMode ? (
-              forgotSent ? (
-                <>
-                  <h1 className="text-center text-[27px] font-semibold tracking-tight text-white">
-                    Check your email
-                  </h1>
-
-                  <p className="mx-auto mt-2 mb-8 max-w-[300px] text-center text-sm leading-6 text-white/55">
-                    {forgotMode === 'password'
-                      ? 'We sent a password reset link to '
-                      : 'We sent your username to '}
-                    <span className="font-medium text-white/85">{forgotEmail}</span>
-                  </p>
-
-                  <Button
-                    type="button"
-                    className={primaryButtonStyle}
-                    onClick={() => {
-                      setForgotMode(null);
-                      setForgotSent(false);
-                      setForgotEmail('');
-                      setError('');
-                    }}
-                  >
-                    Back to sign in
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-center text-[27px] font-semibold tracking-tight text-white">
-                    {forgotMode === 'password' ? 'Reset password' : 'Find username'}
-                  </h1>
-
-                  <p className="mt-2 mb-6 text-center text-sm text-white/50">
-                    Enter your email and we’ll help you get back in.
-                  </p>
-
-                  <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-white/8 p-1">
-                    {(['password', 'username'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => {
-                          setForgotMode(mode);
-                          setError('');
-                        }}
-                        className={`rounded-xl py-2 text-sm font-medium transition-all ${
-                          forgotMode === mode
-                            ? 'bg-white text-gray-950 shadow-lg'
-                            : 'text-white/55 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        {mode === 'password' ? 'Password' : 'Username'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <form
-                    onSubmit={forgotMode === 'password' ? handleForgotPassword : handleForgotUsername}
-                    className="space-y-4"
-                  >
-                    <Input
-                      type="email"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      required
-                      placeholder="Email"
-                      className={inputStyle}
-                      autoFocus
-                    />
-
-                    {error && (
-                      <div className="rounded-2xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm text-red-50">
-                        {error}
-                      </div>
-                    )}
-
-                    <Button type="submit" disabled={loading} className={primaryButtonStyle}>
-                      {loading
-                        ? 'Sending'
-                        : forgotMode === 'password'
-                          ? 'Send reset link'
-                          : 'Send username'}
-                    </Button>
-                  </form>
-
-                  <div className="pt-6 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForgotMode(null);
-                        setForgotEmail('');
-                        setError('');
-                      }}
-                      className="text-sm font-medium text-white/55 transition-colors hover:text-white"
-                    >
-                      Back to sign in
-                    </button>
-                  </div>
-                </>
-              )
-            ) : pendingVerification ? (
+          {forgotMode ? (
+            forgotSent ? (
               <>
-                <h1 className="text-center text-[27px] font-semibold tracking-tight text-white">
-                  Check your email
-                </h1>
-
-                <p className="mx-auto mt-2 mb-6 max-w-[310px] text-center text-sm leading-6 text-white/55">
-                  We sent a 6-digit code to{' '}
-                  <span className="font-medium text-white/85">{email}</span>
+                <p className="mx-auto mb-8 max-w-[300px] text-center text-sm leading-6 text-white/60">
+                  {forgotMode === 'password'
+                    ? 'We sent a password reset link to '
+                    : 'We sent your username to '}
+                  <span className="font-medium text-white/90">{forgotEmail}</span>
                 </p>
 
-                <form onSubmit={handleVerify} className="space-y-4">
+                <Button
+                  type="button"
+                  className={primaryButtonStyle}
+                  onClick={() => {
+                    setForgotMode(null);
+                    setForgotSent(false);
+                    setForgotEmail('');
+                    setError('');
+                  }}
+                >
+                  Back to sign in
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-white/8 p-1">
+                  {(['password', 'username'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setForgotMode(mode);
+                        setError('');
+                      }}
+                      className={`rounded-xl py-2 text-sm font-medium transition-all ${
+                        forgotMode === mode
+                          ? 'bg-white text-gray-950 shadow-lg'
+                          : 'text-white/55 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {mode === 'password' ? 'Password' : 'Username'}
+                    </button>
+                  ))}
+                </div>
+
+                <form
+                  onSubmit={forgotMode === 'password' ? handleForgotPassword : handleForgotUsername}
+                  className="space-y-4"
+                >
                   <Input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
                     required
-                    placeholder="000000"
-                    className={`${inputStyle} text-center text-2xl font-bold tracking-[0.35em]`}
+                    placeholder="Email"
+                    className={inputStyle}
                     autoFocus
                   />
 
@@ -421,111 +354,12 @@ export function AuthView({ onLogin }: AuthViewProps) {
                     </div>
                   )}
 
-                  <Button
-                    type="submit"
-                    disabled={loading || verificationCode.length !== 6}
-                    className={primaryButtonStyle}
-                  >
-                    {loading ? 'Verifying' : 'Verify email'}
-                  </Button>
-                </form>
-
-                <div className="pt-6 text-center">
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={resendCooldown > 0}
-                    className="text-sm font-medium text-white/55 transition-colors hover:text-white disabled:opacity-40"
-                  >
-                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mb-6 text-center">
-                  <h1 className="text-[27px] font-semibold tracking-tight text-white">
-                    {isSignUp ? 'Create account' : 'Welcome back'}
-                  </h1>
-                  <p className="mt-1 text-sm text-white/45">
-                    {isSignUp ? 'Start planning together.' : 'Sign in to continue.'}
-                  </p>
-                </div>
-
-                <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-                  {isSignUp && (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          type="text"
-                          value={username}
-                          onChange={(e) =>
-                            setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
-                          }
-                          required
-                          placeholder="Username"
-                          className={`${inputStyle} flex-1`}
-                        />
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={generateRandomUsername}
-                          className="h-12 w-12 rounded-2xl border border-white/15 bg-white/10 text-white/65 transition-all hover:bg-white/15 hover:text-white active:scale-95"
-                        >
-                          <Shuffle className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <p className="pl-1 text-xs text-white/35">
-                        Lowercase letters, numbers, and dashes only
-                      </p>
-                    </div>
-                  )}
-
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="Email"
-                    className={inputStyle}
-                  />
-
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="Password"
-                    className={inputStyle}
-                  />
-
-                  {!isSignUp && (
-                    <div className="flex justify-center pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForgotMode('password');
-                          setForgotEmail(email);
-                          setError('');
-                        }}
-                        className="text-center text-xs font-medium text-white/45 transition-colors hover:text-white/75"
-                      >
-                        Forgot password or username?
-                      </button>
-                    </div>
-                  )}
-
-                  {error && (
-                    <div className="rounded-2xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm text-red-50">
-                      {error}
-                    </div>
-                  )}
-
                   <Button type="submit" disabled={loading} className={primaryButtonStyle}>
-                    {loading ? 'Loading' : isSignUp ? 'Get started' : 'Log in'}
+                    {loading
+                      ? 'Sending'
+                      : forgotMode === 'password'
+                        ? 'Send reset link'
+                        : 'Send username'}
                   </Button>
                 </form>
 
@@ -533,19 +367,158 @@ export function AuthView({ onLogin }: AuthViewProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      setIsSignUp(!isSignUp);
+                      setForgotMode(null);
+                      setForgotEmail('');
                       setError('');
                     }}
                     className="text-sm font-medium text-white/55 transition-colors hover:text-white"
                   >
-                    {isSignUp
-                      ? 'Already have an account? Sign in'
-                      : "Don't have an account? Sign up"}
+                    Back to sign in
                   </button>
                 </div>
               </>
-            )}
-          </div>
+            )
+          ) : pendingVerification ? (
+            <>
+              <p className="mx-auto mb-6 max-w-[310px] text-center text-sm leading-6 text-white/60">
+                We sent a 6-digit code to{' '}
+                <span className="font-medium text-white/90">{email}</span>
+              </p>
+
+              <form onSubmit={handleVerify} className="space-y-4">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  required
+                  placeholder="000000"
+                  className={`${inputStyle} text-center text-2xl font-bold tracking-[0.35em]`}
+                  autoFocus
+                />
+
+                {error && (
+                  <div className="rounded-2xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm text-red-50">
+                    {error}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={loading || verificationCode.length !== 6}
+                  className={primaryButtonStyle}
+                >
+                  {loading ? 'Verifying' : 'Verify email'}
+                </Button>
+              </form>
+
+              <div className="pt-6 text-center">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0}
+                  className="text-sm font-medium text-white/55 transition-colors hover:text-white disabled:opacity-40"
+                >
+                  {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={username}
+                        onChange={(e) =>
+                          setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                        }
+                        required
+                        placeholder="Username"
+                        className={`${inputStyle} flex-1`}
+                      />
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={generateRandomUsername}
+                        className="h-12 w-12 rounded-2xl border border-white/15 bg-white/10 text-white/65 transition-all hover:bg-white/15 hover:text-white active:scale-95"
+                      >
+                        <Shuffle className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <p className="pl-1 text-xs text-white/35">
+                      Lowercase letters, numbers, and dashes only
+                    </p>
+                  </div>
+                )}
+
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="Email"
+                  className={inputStyle}
+                />
+
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Password"
+                  className={inputStyle}
+                />
+
+                {!isSignUp && (
+                  <div className="flex justify-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotMode('password');
+                        setForgotEmail(email);
+                        setError('');
+                      }}
+                      className="text-center text-xs font-medium text-white/45 transition-colors hover:text-white/75"
+                    >
+                      Forgot password or username?
+                    </button>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="rounded-2xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm text-red-50">
+                    {error}
+                  </div>
+                )}
+
+                <Button type="submit" disabled={loading} className={primaryButtonStyle}>
+                  {loading ? 'Loading' : isSignUp ? 'Get started' : 'Log in'}
+                </Button>
+              </form>
+
+              <div className="pt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setError('');
+                  }}
+                  className="text-sm font-medium text-white/55 transition-colors hover:text-white"
+                >
+                  {isSignUp
+                    ? 'Already have an account? Sign in'
+                    : "Don't have an account? Sign up"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
