@@ -7,11 +7,11 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { MapPin, Calendar as CalendarIcon, Users, Plus, LogOut, Trash2, Settings, User, UserCircle, Pencil, Save, X, ArrowLeft } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Users, Plus, LogOut, Trash2, Settings, UserCircle, Pencil, Save, X, ArrowLeft } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { format, differenceInDays, addDays } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
 const ACTIVITY_INTERESTS = [
   { id: 'culture', label: 'Culture' },
@@ -25,23 +25,10 @@ const ACTIVITY_INTERESTS = [
 ];
 
 const PACE_OPTIONS = [
-  {
-    id: 'leisurely',
-    label: 'Relaxed',
-    description: '2–3 activities per day',
-  },
-  {
-    id: 'balanced',
-    label: 'Balanced',
-    description: '4–5 activities per day',
-  },
-  {
-    id: 'immersive',
-    label: 'Fast-Paced',
-    description: '6+ activities per day',
-  },
+  { id: 'leisurely', label: 'Relaxed', description: '2–3 activities per day' },
+  { id: 'balanced', label: 'Balanced', description: '4–5 activities per day' },
+  { id: 'immersive', label: 'Fast-Paced', description: '6+ activities per day' },
 ];
-
 
 interface DashboardProps {
   session: any;
@@ -63,11 +50,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [savingChanges, setSavingChanges] = useState(false);
-  const [newItinerary, setNewItinerary] = useState({
-    location: '',
-    base: '',
-    days: '3',
-  });
+  const [newItinerary, setNewItinerary] = useState({ location: '', base: '' });
   const [locationSuggestions, setLocationSuggestions] = useState<{ city: string; country: string; full: string; boundingbox: string[] }[]>([]);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -77,6 +60,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [baseLoading, setBaseLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
+  const [stepError, setStepError] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedPace, setSelectedPace] = useState<'leisurely' | 'balanced' | 'immersive'>('balanced');
   const locationInputRef = useRef<HTMLInputElement>(null);
@@ -92,20 +76,13 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
       );
-
       const data = await response.json();
-
       if (response.ok) {
-        // Reverse order so newest itineraries appear first
-        const sorted = (data.itineraries || []).sort((a: any, b: any) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
+        const sorted = (data.itineraries || []).sort((a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
         setItineraries(sorted);
       }
     } catch (error) {
@@ -212,27 +189,25 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     setShowBaseSuggestions(false);
   };
 
+  const resetCreateDialog = () => {
+    setNewItinerary({ location: '', base: '' });
+    setDateRange({ from: undefined, to: undefined });
+    setCreateStep(1);
+    setStepError('');
+    setSelectedInterests([]);
+    setSelectedPace('balanced');
+    setCityBoundingBox(null);
+  };
+
   const handleCreateItinerary = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!dateRange.from || !dateRange.to) {
-      alert('Please select your travel dates');
-      return;
-    }
-
-    if (isCreating) return; // Prevent duplicate submissions
-
+    if (isCreating) return;
     setIsCreating(true);
+
+    const days = differenceInDays(dateRange.to!, dateRange.from!) + 1;
     const title = `Trip to ${newItinerary.location.split(',')[0]}`;
-
-    // Calculate days from date range
-    let days = parseInt(newItinerary.days);
-    let startDate = dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined;
-    let endDate = dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined;
-
-    if (dateRange.from && dateRange.to) {
-      days = differenceInDays(dateRange.to, dateRange.from) + 1;
-    }
+    const startDate = format(dateRange.from!, 'yyyy-MM-dd');
+    const endDate = format(dateRange.to!, 'yyyy-MM-dd');
 
     try {
       const response = await fetch(
@@ -241,7 +216,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
             location: newItinerary.location,
@@ -263,28 +238,23 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       if (response.ok) {
         await generatePlan(data.itinerary.id);
         setCreateDialogOpen(false);
-        setNewItinerary({ location: '', base: '', days: '3' });
-        setDateRange({ from: undefined, to: undefined });
-        setCreateStep(1);
-        setSelectedInterests([]);
-        setSelectedPace('balanced');
-        setCityBoundingBox(null);
+        resetCreateDialog();
         fetchItineraries();
       } else {
-        alert(data.error || 'Failed to create itinerary');
+        setStepError(data.error || 'Failed to create itinerary');
       }
-    } catch (error) {
-      console.error('Failed to create itinerary:', error);
-      alert('Failed to create itinerary. Please try again.');
+    } catch {
+      setStepError('Failed to create itinerary. Please try again.');
     } finally {
       setIsCreating(false);
     }
   };
 
   const handleAdvanceStep = () => {
-    if (!newItinerary.location) { alert('Please enter a destination'); return; }
-    if (!newItinerary.base) { alert('Please enter where you\'re staying'); return; }
-    if (!dateRange.from || !dateRange.to) { alert('Please select your travel dates'); return; }
+    if (!newItinerary.location) { setStepError('Please enter a destination'); return; }
+    if (!newItinerary.base) { setStepError('Please enter where you\'re staying'); return; }
+    if (!dateRange.from || !dateRange.to) { setStepError('Please select your travel dates'); return; }
+    setStepError('');
     setCreateStep(2);
   };
 
@@ -300,9 +270,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/generate`,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         }
       );
     } catch (error) {
@@ -312,130 +280,91 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
   const handleDeleteItinerary = async (itineraryId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    if (!confirm('Are you sure you want to delete this itinerary?')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this itinerary?')) return;
 
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
         {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         }
       );
-
       if (response.ok) {
         fetchItineraries();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to delete itinerary');
       }
     } catch (error) {
       console.error('Failed to delete itinerary:', error);
-      alert('Failed to delete itinerary');
     }
   };
 
   const handleClearAllItineraries = async () => {
-    if (!confirm('Are you sure you want to delete ALL itineraries? This action cannot be undone.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete ALL itineraries? This action cannot be undone.')) return;
 
     try {
-      const deletePromises = itineraries.map(itinerary =>
-        fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itinerary.id}`,
-          {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-          }
+      await Promise.all(
+        itineraries.map(itinerary =>
+          fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itinerary.id}`,
+            {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            }
+          )
         )
       );
-
-      await Promise.all(deletePromises);
       fetchItineraries();
     } catch (error) {
       console.error('Failed to clear itineraries:', error);
-      alert('Failed to clear all itineraries');
     }
   };
 
   const handleSaveUsername = async () => {
-    if (!newUsername || newUsername === userName) {
-      setEditingUsername(false);
-      return;
-    }
-
+    if (!newUsername || newUsername === userName) { setEditingUsername(false); return; }
     setSavingChanges(true);
-
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/username`,
         {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ username: newUsername }),
         }
       );
-
       const data = await response.json();
-
       if (response.ok) {
         session.user.user_metadata.username = newUsername;
         setEditingUsername(false);
-        alert('Username updated successfully!');
       } else {
         alert(data.error || 'Failed to update username');
       }
     } catch (error) {
       console.error('Failed to update username:', error);
-      alert('Failed to update username');
     } finally {
       setSavingChanges(false);
     }
   };
 
   const handleSaveEmail = async () => {
-    if (!newEmail || newEmail === session.user.email) {
-      setEditingEmail(false);
-      return;
-    }
-
+    if (!newEmail || newEmail === session.user.email) { setEditingEmail(false); return; }
     setSavingChanges(true);
-
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/email`,
         {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ email: newEmail }),
         }
       );
-
       const data = await response.json();
-
       if (response.ok) {
         setEditingEmail(false);
-        alert('Email update initiated! Check both your old and new email for confirmation.');
       } else {
         alert(data.error || 'Failed to update email');
       }
     } catch (error) {
       console.error('Failed to update email:', error);
-      alert('Failed to update email');
     } finally {
       setSavingChanges(false);
     }
@@ -443,34 +372,23 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
   const handleDeleteAccount = async () => {
     const confirmation = prompt(
-      'Are you ABSOLUTELY sure you want to delete your account? This will permanently delete all your itineraries and data. Type "DELETE" to confirm:'
+      'This will permanently delete your account and all data. Type "DELETE" to confirm:'
     );
-
-    if (confirmation !== 'DELETE') {
-      return;
-    }
+    if (confirmation !== 'DELETE') return;
 
     try {
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account`,
         {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         }
       );
-
       if (response.ok) {
-        alert('Your account has been deleted.');
         onLogout();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Failed to delete account');
       }
     } catch (error) {
       console.error('Failed to delete account:', error);
-      alert('Failed to delete account');
     }
   };
 
@@ -478,13 +396,14 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
   return (
     <div className="size-full">
+      {/* Header */}
       <header
         className="relative border-b border-white/10 shadow-lg overflow-hidden"
         style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center 30%' }}
       >
         <div className="absolute inset-0 bg-slate-900/70" />
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-7 flex items-center justify-between">
-          <img src={logoImg} alt="WhereTwo" className="h-36 w-auto drop-shadow-md" />
+          <img src={logoImg} alt="WhereTwo" className="h-12 w-auto drop-shadow-md" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="text-white hover:bg-white/10 gap-2 border border-white/20 rounded-full px-4">
@@ -514,6 +433,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         </div>
       </header>
 
+      {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -531,19 +451,14 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                 Clear All
               </Button>
             )}
-            <Dialog open={createDialogOpen} onOpenChange={(open) => {
-              if (!isCreating) {
+            <Dialog
+              open={createDialogOpen}
+              onOpenChange={(open) => {
+                if (isCreating) return;
                 setCreateDialogOpen(open);
-                if (!open) {
-                  setNewItinerary({ location: '', base: '', days: '3' });
-                  setDateRange({ from: undefined, to: undefined });
-                  setCreateStep(1);
-                  setSelectedInterests([]);
-                  setSelectedPace('balanced');
-                  setCityBoundingBox(null);
-                }
-              }
-            }}>
+                if (!open) resetCreateDialog();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className="shadow-md hover:shadow-lg transition-shadow">
                   <Plus className="w-4 h-4 mr-2" />
@@ -905,7 +820,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
 
         {loading ? (
           <div className="text-center py-16">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent" />
             <p className="mt-4 text-muted-foreground">Loading your trips...</p>
           </div>
         ) : itineraries.length === 0 ? (
@@ -923,7 +838,11 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {itineraries.map((itinerary) => (
-              <Card key={itinerary.id} className="cursor-pointer hover:shadow-xl transition-all duration-200 hover:-translate-y-1 border-2 hover:border-primary/20" onClick={() => onViewItinerary(itinerary.id)}>
+              <Card
+                key={itinerary.id}
+                className="cursor-pointer hover:shadow-xl transition-all duration-200 hover:-translate-y-1 border-2 hover:border-primary/20"
+                onClick={() => onViewItinerary(itinerary.id)}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -935,7 +854,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       </CardDescription>
                       {itinerary.base && (
                         <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-secondary" />
                           Staying in {itinerary.base}
                         </p>
                       )}
@@ -961,7 +880,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       {itinerary.startDate && itinerary.endDate ? (
                         <div className="flex flex-col">
                           <span className="font-medium text-xs">
-                            {format(new Date(itinerary.startDate), 'MMM d')} - {format(new Date(itinerary.endDate), 'MMM d, yyyy')}
+                            {format(new Date(itinerary.startDate), 'MMM d')} – {format(new Date(itinerary.endDate), 'MMM d, yyyy')}
                           </span>
                           <span className="text-xs text-muted-foreground">{itinerary.days} days</span>
                         </div>
@@ -991,6 +910,87 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
           </div>
         )}
       </main>
+
+      {/* Settings dialog — rendered at component root, outside layout */}
+      <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Account Settings</DialogTitle>
+            <DialogDescription>Manage your account information and preferences</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Username</Label>
+                {editingUsername ? (
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="wheretwo-user-0"
+                      disabled={savingChanges}
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveUsername} disabled={savingChanges}>
+                      <Save className="w-4 h-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setEditingUsername(false); setNewUsername(''); }} disabled={savingChanges}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-base font-semibold">@{userName}</p>
+                    <Button size="icon" variant="ghost" onClick={() => { setEditingUsername(true); setNewUsername(userName); }}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                {editingEmail ? (
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      disabled={savingChanges}
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveEmail} disabled={savingChanges}>
+                      <Save className="w-4 h-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setEditingEmail(false); setNewEmail(''); }} disabled={savingChanges}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-base font-semibold">{session.user.email}</p>
+                    <Button size="icon" variant="ghost" onClick={() => { setEditingEmail(true); setNewEmail(session.user.email || ''); }}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Danger Zone</h3>
+              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                <h4 className="text-sm font-semibold text-destructive mb-2">Delete Account</h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Permanently delete your account and all associated data. This action cannot be undone.
+                </p>
+                <Button variant="destructive" size="sm" onClick={handleDeleteAccount} className="w-full">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
