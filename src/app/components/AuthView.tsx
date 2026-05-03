@@ -286,7 +286,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           <img
             src={logoImg}
             alt="WhereTwo"
-            className="mx-auto mb-7 w-60 h-60 object-contain drop-shadow-2xl"
+            className="mx-auto mb-1 w-56 h-56 object-contain drop-shadow-2xl"
           />
 
           {forgotMode ? (
@@ -336,7 +336,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
                 <form
                   onSubmit={forgotMode === 'password' ? handleForgotPassword : handleForgotUsername}
-                  className="space-y-4"
+                  className="space-y-4 -mt-2"
                 >
                   <Input
                     type="email"
@@ -385,7 +385,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                 <span className="font-medium text-white/90">{email}</span>
               </p>
 
-              <form onSubmit={handleVerify} className="space-y-4">
+              <form onSubmit={handleVerify} className="space-y-4 -mt-2">
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -426,7 +426,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             </>
           ) : (
             <>
-              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+              <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4 -mt-2">
                 {isSignUp && (
                   <div className="space-y-2">
                     <div className="flex gap-2">
