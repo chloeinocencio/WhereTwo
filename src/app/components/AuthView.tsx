@@ -3,8 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { MapPin, Shuffle } from 'lucide-react';
+import { Shuffle } from 'lucide-react';
 import headerImg from '../../assets/header.jpg';
 import logoImg from '../../assets/daily.png';
 
@@ -19,6 +18,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [forgotMode, setForgotMode] = useState<'password' | 'username' | null>(null);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
 
   const generateRandomUsername = async () => {
     try {
@@ -26,11 +32,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/generate-username`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            Authorization: `Bearer ${publicAnonKey}`,
           },
         }
       );
+
       const data = await response.json();
+
       if (response.ok) {
         setUsername(data.username);
       }
@@ -51,7 +59,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
+            Authorization: `Bearer ${publicAnonKey}`,
           },
           body: JSON.stringify({ email, password, username }),
         }
@@ -60,26 +68,116 @@ export function AuthView({ onLogin }: AuthViewProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('Signup error:', data);
         setError(data.error || `Sign up failed: ${response.status} ${response.statusText}`);
         setLoading(false);
         return;
       }
 
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (loginError) {
-        setError(loginError.message);
+      if (data.requiresVerification) {
+        setPendingUserId(data.userId);
+        setPendingVerification(true);
         setLoading(false);
+        startResendCooldown();
         return;
       }
 
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginError) { setError(loginError.message); setLoading(false); return; }
       onLogin(loginData.session);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
+      setLoading(false);
+    }
+  };
+
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown(prev => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; });
+    }, 1000);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/verify-email`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ userId: pendingUserId, code: verificationCode }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Verification failed'); setLoading(false); return; }
+
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginError) { setError(loginError.message); setLoading(false); return; }
+      onLogin(loginData.session);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/resend-verification`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ userId: pendingUserId }),
+        }
+      );
+      startResendCooldown();
+    } catch { /* silent */ }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/forgot-password`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({
+            email: forgotEmail,
+            redirectTo: `${window.location.origin}${window.location.pathname}`,
+          }),
+        }
+      );
+      setForgotSent(true);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/forgot-username`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ email: forgotEmail }),
+        }
+      );
+      setForgotSent(true);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
       setLoading(false);
     }
   };
@@ -110,116 +208,260 @@ export function AuthView({ onLogin }: AuthViewProps) {
 
   return (
     <div
-      className="size-full flex relative"
-      style={{ backgroundImage: `url(${headerImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      className="min-h-screen w-full relative flex flex-col overflow-hidden"
+      style={{
+        backgroundImage: `url(${headerImg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-900/65" />
+      <div className="absolute inset-0 bg-black/50" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
 
-      {/* Left panel */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12 lg:p-16 gap-6 text-center">
-        <img src={logoImg} alt="WhereTwo" className="h-10 w-auto max-w-[280px]" />
-        <div className="space-y-3">
-          <h2 className="text-4xl font-bold text-white leading-tight">
-            Let's explore the world together
-          </h2>
-          <p className="text-white/60 flex items-center justify-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 shrink-0" />
-            Collaborative travel planning for every destination
-          </p>
-        </div>
-        <p className="absolute bottom-10 text-white/40 text-sm">AI-powered itineraries</p>
-      </div>
-
-      {/* Right panel */}
-      <div className="relative z-10 w-[460px] flex items-center justify-center p-8">
-        <div className="w-full bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 space-y-5">
-          <div>
-            <h1 className="text-2xl font-bold text-white">
-              {isSignUp ? 'Create account' : 'Welcome back'}
-            </h1>
-            <p className="text-white/50 text-sm mt-1">
-              {isSignUp ? 'Start planning your next adventure' : 'Sign in to continue planning'}
-            </p>
-          </div>
-
-          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-            {isSignUp && (
-              <div className="space-y-1.5">
-                <Label className="text-white/80 text-sm">Username</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                    required
-                    placeholder="wheretwo-user-0"
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={generateRandomUsername}
-                    className="text-white/60 hover:text-white hover:bg-white/10 border border-white/20"
-                  >
-                    <Shuffle className="w-4 h-4" />
-                  </Button>
-                </div>
-                <p className="text-white/35 text-xs">Lowercase letters, numbers, and dashes only</p>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label className="text-white/80 text-sm">Email</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[400px]">
+          {/* Unified glass card: logo + form */}
+          <div
+            className="w-full rounded-3xl border border-white/20 shadow-2xl backdrop-blur-2xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.07) 100%)',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
+            }}
+          >
+            {/* Logo section */}
+            <div className="flex flex-col items-center pt-8 pb-5 px-8">
+              <img
+                src={logoImg}
+                alt="WhereTwo"
+                className="w-20 h-20 object-contain drop-shadow-lg"
               />
+              <p className="text-white/50 text-xs tracking-widest uppercase mt-1">
+                Plan together
+              </p>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-white/80 text-sm">Password</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus-visible:ring-white/30"
-              />
+            <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mx-6" />
+
+            {/* Form section */}
+            <div className="px-8 pt-6 pb-8">
+              {forgotMode ? (
+                forgotSent ? (
+                  <>
+                    <h2 className="text-xl font-semibold text-white text-center mb-2">
+                      Check your email
+                    </h2>
+                    <p className="text-sm text-white/50 text-center mb-6">
+                      {forgotMode === 'password'
+                        ? 'We sent a password reset link to '
+                        : 'We sent your username to '}
+                      <span className="text-white/80 font-medium">{forgotEmail}</span>
+                    </p>
+                    <Button
+                      type="button"
+                      className="h-11 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                      onClick={() => { setForgotMode(null); setForgotSent(false); setForgotEmail(''); setError(''); }}
+                    >
+                      Back to sign in
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold text-white text-center mb-5">
+                      {forgotMode === 'password' ? 'Reset password' : 'Find username'}
+                    </h2>
+                    <div className="flex gap-2 mb-5">
+                      {(['password', 'username'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => { setForgotMode(mode); setError(''); }}
+                          className={`flex-1 py-2 rounded-2xl text-sm font-medium transition-all ${
+                            forgotMode === mode
+                              ? 'bg-white text-gray-950'
+                              : 'bg-white/10 text-white/60 hover:bg-white/15'
+                          }`}
+                        >
+                          {mode === 'password' ? 'Password' : 'Username'}
+                        </button>
+                      ))}
+                    </div>
+                    <form onSubmit={forgotMode === 'password' ? handleForgotPassword : handleForgotUsername} className="space-y-4">
+                      <Input
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required
+                        placeholder="Email"
+                        className="h-11 rounded-2xl bg-white/10 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                        autoFocus
+                      />
+                      {error && (
+                        <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                          {error}
+                        </div>
+                      )}
+                      <Button
+                        type="submit"
+                        disabled={loading}
+                        className="h-11 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                      >
+                        {loading ? 'Sending...' : forgotMode === 'password' ? 'Send reset link' : 'Send username'}
+                      </Button>
+                    </form>
+                    <div className="pt-5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => { setForgotMode(null); setForgotEmail(''); setError(''); }}
+                        className="text-sm text-white/50 hover:text-white transition-colors"
+                      >
+                        Back to sign in
+                      </button>
+                    </div>
+                  </>
+                )
+              ) : pendingVerification ? (
+                <>
+                  <h2 className="text-xl font-semibold text-white text-center mb-2">
+                    Check your email
+                  </h2>
+                  <p className="text-sm text-white/50 text-center mb-5">
+                    We sent a 6-digit code to <span className="text-white/80 font-medium">{email}</span>
+                  </p>
+                  <form onSubmit={handleVerify} className="space-y-4">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      required
+                      placeholder="000000"
+                      className="h-11 rounded-2xl bg-white/10 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30 text-center text-2xl tracking-widest font-bold"
+                      autoFocus
+                    />
+                    {error && (
+                      <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                        {error}
+                      </div>
+                    )}
+                    <Button
+                      type="submit"
+                      disabled={loading || verificationCode.length !== 6}
+                      className="h-11 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all"
+                    >
+                      {loading ? 'Verifying...' : 'Verify Email'}
+                    </Button>
+                  </form>
+                  <div className="pt-5 text-center">
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendCooldown > 0}
+                      className="text-sm text-white/50 hover:text-white transition-colors disabled:opacity-40"
+                    >
+                      {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-3">
+                    {isSignUp && (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-2">
+                          <Input
+                            type="text"
+                            value={username}
+                            onChange={(e) =>
+                              setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                            }
+                            required
+                            placeholder="Username"
+                            className="h-11 flex-1 rounded-2xl bg-white/10 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={generateRandomUsername}
+                            className="h-11 w-11 rounded-2xl text-white/65 hover:text-white hover:bg-white/15 border border-white/15"
+                          >
+                            <Shuffle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-white/35">
+                          Lowercase letters, numbers, and dashes only
+                        </p>
+                      </div>
+                    )}
+
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="Email"
+                      className="h-11 rounded-2xl bg-white/10 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                    />
+
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="Password"
+                      className="h-11 rounded-2xl bg-white/10 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-white/30"
+                    />
+
+                    {!isSignUp && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => { setForgotMode('password'); setForgotEmail(email); setError(''); }}
+                          className="text-xs text-white/45 hover:text-white/70 transition-colors"
+                        >
+                          Forgot your login details? Get help
+                        </button>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="rounded-2xl border border-red-400/25 bg-red-500/15 px-4 py-3 text-sm text-red-100">
+                        {error}
+                      </div>
+                    )}
+
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="h-11 w-full rounded-2xl bg-white text-gray-950 font-semibold shadow-lg hover:bg-white/90 transition-all mt-1"
+                    >
+                      {loading ? 'Loading' : isSignUp ? 'Get started' : 'Log in'}
+                    </Button>
+                  </form>
+
+                  <div className="pt-5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSignUp(!isSignUp);
+                        setError('');
+                      }}
+                      className="text-sm text-white/50 hover:text-white transition-colors"
+                    >
+                      {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-
-            {error && (
-              <div className="text-sm text-red-300 bg-red-900/30 p-3 rounded-lg border border-red-500/30">
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full h-11 text-sm font-semibold bg-white text-gray-900 hover:bg-white/90"
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
-            </Button>
-          </form>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-              className="text-sm text-white/50 hover:text-white/80 transition-colors"
-            >
-              {isSignUp ? 'Already have an account? Sign in →' : "Don't have an account? Sign up →"}
-            </button>
           </div>
         </div>
-      </div>
+      </main>
+
+      <footer className="relative z-10 pb-5 text-center text-xs text-white/40">
+        © {new Date().getFullYear()} Chloe Inocencio. All Rights Reserved.
+      </footer>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthView } from './components/AuthView';
-import { Dashboard } from './components/Dashboard';
+import Dashboard from './components/Dashboard';
 import { ItineraryView } from './components/ItineraryView';
 
 export default function App() {

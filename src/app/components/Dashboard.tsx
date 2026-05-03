@@ -391,7 +391,7 @@ interface DashboardProps {
   onViewItinerary: (id: string) => void;
 }
 
-export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps) {
+export default function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps) {
   const [itineraries, setItineraries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
