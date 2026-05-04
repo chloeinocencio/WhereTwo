@@ -452,7 +452,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                       }}
                       className="text-center text-xs font-medium text-white/45 transition-colors hover:text-white/75"
                     >
-                      Forgot password?
+                      Forgot your login details? Get help logging in.
                     </button>
                   </div>
                 )}
