@@ -623,7 +623,8 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-4 min-h-[440px] max-h-[65vh] overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 max-h-[52vh] overflow-y-auto pr-1">
                     <div className="space-y-2">
                       <Label className="text-base">What experiences interest you?</Label>
                       <div className="flex flex-wrap gap-2">
@@ -697,7 +698,9 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
                       </div>
                     </div>
 
-                    <div className="flex gap-2 mt-auto">
+                    </div>{/* end scroll area */}
+
+                    <div className="flex gap-2">
                       <Button type="button" variant="outline" onClick={() => setCreateStep(1)} className="gap-1.5" disabled={isCreating}>
                         <ArrowLeft className="w-4 h-4" />
                         Back

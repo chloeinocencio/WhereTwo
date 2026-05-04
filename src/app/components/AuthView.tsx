@@ -22,7 +22,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
   const [pendingUserId, setPendingUserId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [forgotMode, setForgotMode] = useState<'password' | 'username' | null>(null);
+  const [forgotMode, setForgotMode] = useState<'password' | null>(null);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
@@ -218,32 +218,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
     }
   };
 
-  const handleForgotUsername = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/forgot-username`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({ email: forgotEmail }),
-        }
-      );
-
-      setForgotSent(true);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -271,21 +245,17 @@ export function AuthView({ onLogin }: AuthViewProps) {
   const cardTitle = forgotMode
     ? forgotSent
       ? 'Check your email'
-      : forgotMode === 'password'
-      ? 'Forgot password?'
-      : 'Forgot username?'
+      : 'Forgot password?'
     : pendingVerification
     ? 'Verify your email'
     : isSignUp
     ? 'Create account'
-    : 'Sign in';
+    : 'Welcome back';
 
   const cardSubtitle = forgotMode
     ? forgotSent
       ? 'Your request has been sent'
-      : forgotMode === 'password'
-      ? "Enter your email and we'll send a reset link"
-      : "Enter your email and we'll send your username"
+      : "Enter your email and we'll send a reset link"
     : pendingVerification
     ? `Enter the 6-digit code we sent to ${email}`
     : isSignUp
@@ -322,9 +292,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
             forgotSent ? (
               <>
                 <p className="mx-auto mb-8 max-w-[300px] text-center text-sm leading-6 text-white/60">
-                  {forgotMode === 'password'
-                    ? 'We sent a password reset link to '
-                    : 'We sent your username to '}
+                  We sent a password reset link to{' '}
                   <span className="font-medium text-white/90">{forgotEmail}</span>
                 </p>
 
@@ -343,30 +311,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
               </>
             ) : (
               <>
-                <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-white/8 p-1">
-                  {(['password', 'username'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setForgotMode(mode);
-                        setError('');
-                      }}
-                      className={`rounded-xl py-2 text-sm font-medium transition-all ${
-                        forgotMode === mode
-                          ? 'bg-white text-gray-950 shadow-lg'
-                          : 'text-white/55 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      {mode === 'password' ? 'Password' : 'Username'}
-                    </button>
-                  ))}
-                </div>
-
-                <form
-                  onSubmit={forgotMode === 'password' ? handleForgotPassword : handleForgotUsername}
-                  className="space-y-4 -mt-2"
-                >
+                <form onSubmit={handleForgotPassword} className="space-y-4 -mt-2">
                   <Input
                     type="email"
                     value={forgotEmail}
@@ -384,11 +329,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                   )}
 
                   <Button type="submit" disabled={loading} className={primaryButtonStyle}>
-                    {loading
-                      ? 'Sending'
-                      : forgotMode === 'password'
-                        ? 'Send reset link'
-                        : 'Send username'}
+                    {loading ? 'Sending' : 'Send reset link'}
                   </Button>
                 </form>
 
@@ -511,7 +452,7 @@ export function AuthView({ onLogin }: AuthViewProps) {
                       }}
                       className="text-center text-xs font-medium text-white/45 transition-colors hover:text-white/75"
                     >
-                      Forgot password or username?
+                      Forgot password?
                     </button>
                   </div>
                 )}
