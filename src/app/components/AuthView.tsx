@@ -268,6 +268,30 @@ export function AuthView({ onLogin }: AuthViewProps) {
     }
   };
 
+  const cardTitle = forgotMode
+    ? forgotSent
+      ? 'Check your email'
+      : forgotMode === 'password'
+      ? 'Forgot password?'
+      : 'Forgot username?'
+    : pendingVerification
+    ? 'Verify your email'
+    : isSignUp
+    ? 'Create account'
+    : 'Sign in';
+
+  const cardSubtitle = forgotMode
+    ? forgotSent
+      ? 'Your request has been sent'
+      : forgotMode === 'password'
+      ? "Enter your email and we'll send a reset link"
+      : "Enter your email and we'll send your username"
+    : pendingVerification
+    ? `Enter the 6-digit code we sent to ${email}`
+    : isSignUp
+    ? 'Start planning your next adventure'
+    : 'Sign in to continue planning';
+
   return (
     <div
       className="min-h-screen w-full relative flex flex-col overflow-hidden"
@@ -285,13 +309,13 @@ export function AuthView({ onLogin }: AuthViewProps) {
         <img
           src={logoImg}
           alt="WhereTwo"
-          className="mb-5 w-28 h-28 object-contain drop-shadow-2xl"
+          className="mb-5 w-44 h-44 object-contain drop-shadow-2xl"
         />
 
         <div className="w-full max-w-[420px] rounded-[2.25rem] border border-white/20 bg-white/[0.11] px-7 py-8 shadow-2xl shadow-black/35 backdrop-blur-2xl">
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-white tracking-tight">WhereTwo</h1>
-            <p className="mt-1 text-sm text-white/55">Plan your next adventure together</p>
+            <h1 className="text-2xl font-bold text-white tracking-tight">{cardTitle}</h1>
+            <p className="mt-1 text-sm text-white/55">{cardSubtitle}</p>
           </div>
 
           {forgotMode ? (
@@ -385,11 +409,6 @@ export function AuthView({ onLogin }: AuthViewProps) {
             )
           ) : pendingVerification ? (
             <>
-              <p className="mx-auto mb-6 max-w-[310px] text-center text-sm leading-6 text-white/60">
-                We sent a 6-digit code to{' '}
-                <span className="font-medium text-white/90">{email}</span>
-              </p>
-
               <form onSubmit={handleVerify} className="space-y-4 -mt-2">
                 <Input
                   type="text"
