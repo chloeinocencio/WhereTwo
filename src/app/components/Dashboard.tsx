@@ -30,6 +30,12 @@ const PACE_OPTIONS = [
   { id: 'immersive', label: 'Fast-Paced', description: '6+ activities per day' },
 ];
 
+const BUDGET_OPTIONS = [
+  { id: 'budget', label: 'Budget', description: 'Under $100/day · Hostels, street food, free sights' },
+  { id: 'mid-range', label: 'Mid-Range', description: '$100–$300/day · Hotels, local restaurants, paid experiences' },
+  { id: 'luxury', label: 'Luxury', description: '$300+/day · Boutique stays, fine dining, premium experiences' },
+];
+
 interface DashboardProps {
   session: any;
   onLogout: () => void;
@@ -63,6 +69,7 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
   const [stepError, setStepError] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedPace, setSelectedPace] = useState<'leisurely' | 'balanced' | 'immersive'>('balanced');
+  const [selectedBudget, setSelectedBudget] = useState<'budget' | 'mid-range' | 'luxury'>('mid-range');
   const locationInputRef = useRef<HTMLInputElement>(null);
   const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const baseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,6 +203,7 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
     setStepError('');
     setSelectedInterests([]);
     setSelectedPace('balanced');
+    setSelectedBudget('mid-range');
     setCityBoundingBox(null);
   };
 
@@ -229,6 +237,7 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
             interests: selectedInterests,
             travelStyle: 'balanced',
             pace: selectedPace,
+            budget: selectedBudget,
           }),
         }
       );
@@ -236,7 +245,7 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
       const data = await response.json();
 
       if (response.ok) {
-        await generatePlan(data.itinerary.id);
+        await generatePlan(data.itinerary.id, selectedBudget);
         setCreateDialogOpen(false);
         resetCreateDialog();
         fetchItineraries();
@@ -264,13 +273,17 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
     );
   };
 
-  const generatePlan = async (itineraryId: string) => {
+  const generatePlan = async (itineraryId: string, budget: string) => {
     try {
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/generate`,
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ budget }),
         }
       );
     } catch (error) {
@@ -610,7 +623,7 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-4 min-h-[440px]">
+                  <div className="flex flex-col gap-4 min-h-[440px] max-h-[65vh] overflow-y-auto pr-1">
                     <div className="space-y-2">
                       <Label className="text-base">What experiences interest you?</Label>
                       <div className="flex flex-wrap gap-2">
@@ -649,6 +662,31 @@ export default function Dashboard({ session, onLogout, onViewItinerary }: Dashbo
                             }`}
                           >
                             <div className={`font-semibold text-sm ${selectedPace === option.id ? 'text-primary' : 'text-foreground'}`}>
+                              {option.label}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                              {option.description}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-base">What's your daily budget?</Label>
+                      <div className="space-y-2">
+                        {BUDGET_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSelectedBudget(option.id as 'budget' | 'mid-range' | 'luxury')}
+                            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                              selectedBudget === option.id
+                                ? 'border-primary bg-primary/5 shadow-sm'
+                                : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className={`font-semibold text-sm ${selectedBudget === option.id ? 'text-primary' : 'text-foreground'}`}>
                               {option.label}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1 leading-relaxed">

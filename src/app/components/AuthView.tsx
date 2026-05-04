@@ -281,13 +281,18 @@ export function AuthView({ onLogin }: AuthViewProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-black/10 to-black/50" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.18),_transparent_42%)]" />
 
-      <main className="relative z-10 flex-1 flex items-center justify-center px-5 py-8">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-5 py-8">
+        <img
+          src={logoImg}
+          alt="WhereTwo"
+          className="mb-5 w-28 h-28 object-contain drop-shadow-2xl"
+        />
+
         <div className="w-full max-w-[420px] rounded-[2.25rem] border border-white/20 bg-white/[0.11] px-7 py-8 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-          <img
-            src={logoImg}
-            alt="WhereTwo"
-            className="mx-auto mb-1 w-56 h-56 object-contain drop-shadow-2xl"
-          />
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-white tracking-tight">WhereTwo</h1>
+            <p className="mt-1 text-sm text-white/55">Plan your next adventure together</p>
+          </div>
 
           {forgotMode ? (
             forgotSent ? (

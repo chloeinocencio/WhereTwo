@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { ArrowLeft, MapPin, Calendar, Users, UserPlus, LogOut, Edit2, Check, X, Clock, Banknote, Navigation, Info, Trash2, GripVertical, Plus } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Users, UserPlus, LogOut, Edit2, Check, X, Clock, Banknote, Navigation, Info, Trash2, GripVertical, Plus, Plane } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { format } from 'date-fns';
 import {
@@ -244,6 +244,12 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
   const [editedDayTitle, setEditedDayTitle] = useState('');
   const [activeActivity, setActiveActivity] = useState<any>(null);
+  const [flightDetails, setFlightDetails] = useState<any>(null);
+  const [editingFlight, setEditingFlight] = useState(false);
+  const [flightForm, setFlightForm] = useState({
+    airline: '', flightNumber: '', departureAirport: '', departureTime: '',
+    arrivalAirport: '', arrivalTime: '', confirmationCode: '',
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -253,6 +259,27 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   useEffect(() => {
     fetchItinerary();
   }, [itineraryId]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`flight-${itineraryId}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setFlightDetails(parsed);
+      setFlightForm(parsed);
+    }
+  }, [itineraryId]);
+
+  const saveFlightDetails = () => {
+    localStorage.setItem(`flight-${itineraryId}`, JSON.stringify(flightForm));
+    setFlightDetails({ ...flightForm });
+    setEditingFlight(false);
+  };
+
+  const clearFlightDetails = () => {
+    localStorage.removeItem(`flight-${itineraryId}`);
+    setFlightDetails(null);
+    setFlightForm({ airline: '', flightNumber: '', departureAirport: '', departureTime: '', arrivalAirport: '', arrivalTime: '', confirmationCode: '' });
+  };
 
   const fetchItinerary = async () => {
     try {
@@ -578,6 +605,102 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 </Badge>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-8 border-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+                <Plane className="w-5 h-5 text-primary" />
+                Flight Details
+              </CardTitle>
+              <div className="flex gap-2">
+                {flightDetails && !editingFlight && (
+                  <Button variant="ghost" size="sm" onClick={clearFlightDetails} className="text-muted-foreground hover:text-destructive text-xs">
+                    Remove
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => setEditingFlight(!editingFlight)}>
+                  {editingFlight ? 'Cancel' : flightDetails ? 'Edit' : 'Add Flight'}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {editingFlight ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Airline</Label>
+                    <Input value={flightForm.airline} onChange={(e) => setFlightForm({ ...flightForm, airline: e.target.value })} placeholder="e.g. Delta" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Flight Number</Label>
+                    <Input value={flightForm.flightNumber} onChange={(e) => setFlightForm({ ...flightForm, flightNumber: e.target.value })} placeholder="e.g. DL 123" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Departure Airport</Label>
+                    <Input value={flightForm.departureAirport} onChange={(e) => setFlightForm({ ...flightForm, departureAirport: e.target.value })} placeholder="e.g. JFK" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Departure Time</Label>
+                    <Input value={flightForm.departureTime} onChange={(e) => setFlightForm({ ...flightForm, departureTime: e.target.value })} placeholder="e.g. Jun 1, 8:00 AM" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Arrival Airport</Label>
+                    <Input value={flightForm.arrivalAirport} onChange={(e) => setFlightForm({ ...flightForm, arrivalAirport: e.target.value })} placeholder="e.g. NRT" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Arrival Time</Label>
+                    <Input value={flightForm.arrivalTime} onChange={(e) => setFlightForm({ ...flightForm, arrivalTime: e.target.value })} placeholder="e.g. Jun 2, 11:30 AM" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Confirmation Code</Label>
+                  <Input value={flightForm.confirmationCode} onChange={(e) => setFlightForm({ ...flightForm, confirmationCode: e.target.value })} placeholder="e.g. ABC123" />
+                </div>
+                <Button onClick={saveFlightDetails} className="w-full mt-1">
+                  <Check className="w-4 h-4 mr-2" />
+                  Save Flight Details
+                </Button>
+              </div>
+            ) : flightDetails && (flightDetails.airline || flightDetails.flightNumber) ? (
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {(flightDetails.airline || flightDetails.flightNumber) && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Flight</p>
+                    <p className="font-semibold">{[flightDetails.airline, flightDetails.flightNumber].filter(Boolean).join(' · ')}</p>
+                  </div>
+                )}
+                {flightDetails.confirmationCode && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Confirmation</p>
+                    <p className="font-semibold font-mono">{flightDetails.confirmationCode}</p>
+                  </div>
+                )}
+                {flightDetails.departureAirport && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Departure</p>
+                    <p className="font-semibold">{flightDetails.departureAirport}</p>
+                    {flightDetails.departureTime && <p className="text-xs text-muted-foreground">{flightDetails.departureTime}</p>}
+                  </div>
+                )}
+                {flightDetails.arrivalAirport && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Arrival</p>
+                    <p className="font-semibold">{flightDetails.arrivalAirport}</p>
+                    {flightDetails.arrivalTime && <p className="text-xs text-muted-foreground">{flightDetails.arrivalTime}</p>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No flight details added yet. Click "Add Flight" to save your flight information.</p>
+            )}
           </CardContent>
         </Card>
 
