@@ -194,14 +194,14 @@ private struct StatusChip: View {
     var body: some View {
         HStack(spacing: 5) {
             if status.isUnderway {
-                Circle().fill(Color(hex: 0x3A2300)).frame(width: 5, height: 5)
+                Circle().fill(.white).frame(width: 5, height: 5)
             }
             Text(status.text)
         }
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .foregroundStyle(status.isUnderway ? Color(hex: 0x3A2300) : .white)
+        .foregroundStyle(.white)
         .background(status.isUnderway ? AnyShapeStyle(Theme.today) : AnyShapeStyle(Color.white.opacity(0.2)), in: Capsule())
     }
 }
@@ -374,7 +374,7 @@ private struct TripCard: View {
                             .foregroundStyle(Theme.slate)
                     }
                     Spacer()
-                    Avatars(trip: trip, fill: Color(hex: 0xE6ECF8), ring: Color(.secondarySystemGroupedBackground))
+                    Avatars(trip: trip, fill: Color(hex: 0xEEF0F3), ring: Color(.secondarySystemGroupedBackground))
                 }
                 PlanPreview(trip: trip)
             }

@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import {
-  MapPin, Calendar as CalendarIcon, Plus, LogOut, ChevronRight,
+  Calendar as CalendarIcon, Plus, LogOut, ChevronRight,
   Trash2, Settings, UserCircle, Pencil, Save, X,
 } from 'lucide-react';
 import { Calendar } from './ui/calendar';
@@ -148,6 +148,38 @@ function Avatars({ names, ring, fill = '#fff' }: { names: string[]; ring: string
   );
 }
 
+/** Small photo of a place for search suggestions (Wikipedia lead image), blank until it loads. */
+function PlaceThumb({ location }: { location: string }) {
+  const photo = usePlacePhoto(location);
+  return (
+    <span className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+      {photo && <img src={photo.url} alt="" loading="lazy" className="h-full w-full object-cover" />}
+    </span>
+  );
+}
+
+/** Booking-style preview of the destination you picked, before the trip is created. */
+function DestinationPreview({ location, base }: { location: string; base: string }) {
+  const photo = usePlacePhoto(location);
+  const { city, region } = splitPlace(location);
+  if (photo === null) return null; // no usable photo for this place: keep the form compact
+  return (
+    <div className="relative mt-1 h-36 overflow-hidden rounded-xl bg-slate-100">
+      {photo && <img src={photo.url} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+      <div className="absolute bottom-3 left-4 right-4 text-white">
+        <p className="font-display text-xl font-bold leading-tight">{city}</p>
+        <p className="text-sm text-white/85">{[region, base && `staying in ${base}`].filter(Boolean).join(', ')}</p>
+      </div>
+      {photo && (
+        <a href={photo.creditUrl} target="_blank" rel="noopener noreferrer" className="absolute right-2 top-1.5 text-[10px] text-white/70 hover:underline">
+          Photo: Wikimedia Commons
+        </a>
+      )}
+    </div>
+  );
+}
+
 /** A line naming the first stops, so each card hints at what the plan holds. */
 function PlanPreview({ trip }: { trip: any }) {
   const stops = (trip.plan || []).flatMap((d: any) => d.activities || []);
@@ -208,10 +240,10 @@ function StatusChip({ status, onDark }: { status: TripStatus; onDark?: boolean }
     <span
       className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
       style={underway
-        ? { background: TODAY, color: '#3A2300' }
-        : onDark ? { background: 'rgba(255,255,255,0.18)', color: '#fff' } : { background: '#EEF2FA', color: INK }}
+        ? { background: TODAY, color: '#FFFFFF' }
+        : onDark ? { background: 'rgba(255,255,255,0.18)', color: '#fff' } : { background: '#EEF0F3', color: INK }}
     >
-      {underway && <span className="h-1.5 w-1.5 rounded-full bg-[#3A2300]" />}
+      {underway && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
       {statusText(status)}
     </span>
   );
@@ -297,7 +329,7 @@ function TripCard({ trip, canDelete, onOpen, onDelete }: { trip: any; canDelete:
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#DDE4F3] transition-shadow hover:shadow-[0_14px_30px_-20px_rgba(14,31,77,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#E3E6EB] transition-shadow hover:shadow-[0_14px_30px_-20px_rgba(14,31,77,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
     >
       <PlacePhotoPanel location={trip.location} muted={past} className="h-40">
         <div className="flex h-full flex-col justify-between p-5">
@@ -325,7 +357,7 @@ function TripCard({ trip, canDelete, onOpen, onDelete }: { trip: any; canDelete:
             <p className="truncate font-semibold" style={{ color: INK }}>{trip.title}</p>
             <p className="mt-0.5 text-sm" style={{ color: SLATE }}>{tripDates(trip)}</p>
           </div>
-          <Avatars names={travelers(trip)} ring="#fff" fill="#E6ECF8" />
+          <Avatars names={travelers(trip)} ring="#fff" fill="#EEF0F3" />
         </div>
         <PlanPreview trip={trip} />
       </div>
@@ -598,7 +630,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="relative overflow-hidden text-white" style={{ background: INK }}>
         <img src={headerBg} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0E1F4D]/90 via-[#0E1F4D]/50 to-[#0E1F4D]/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1B1F27]/90 via-[#1B1F27]/50 to-[#1B1F27]/20" />
         <div className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-5 pb-9">
           <div className="flex items-center justify-between">
             <img src={logo} alt="WhereTwo" className="h-12 w-auto" />
@@ -706,7 +738,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, y: -4, scale: 0.98 }}
                               transition={{ duration: 0.15 }}
-                              className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-auto"
+                              className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-80 overflow-auto"
                             >
                               {locationSearching ? (
                                 <div className="flex items-center gap-2 px-4 py-3 text-slate-400 text-sm">
@@ -719,10 +751,10 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                                     onClick={() => { setNewItinerary({ ...newItinerary, location: dest.full }); setShowLocationSuggestions(false); }}
                                     className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100 last:border-0 transition-colors"
                                   >
-                                    <MapPin className="w-4 h-4 text-primary shrink-0" />
-                                    <div>
+                                    <PlaceThumb location={dest.full} />
+                                    <div className="min-w-0">
                                       <div className="font-medium text-slate-900 text-sm">{dest.city}</div>
-                                      <div className="text-xs text-slate-500">{dest.country}</div>
+                                      <div className="truncate text-xs text-slate-500">{dest.full.split(',').slice(1).join(',').trim() || dest.country}</div>
                                     </div>
                                   </button>
                                 ))
@@ -731,7 +763,9 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           )}
                         </AnimatePresence>
                       </div>
-                      <p className="text-xs text-muted-foreground">You can type any city in the world</p>
+                      {newItinerary.location && !showLocationSuggestions
+                        ? <DestinationPreview location={newItinerary.location} base={newItinerary.base} />
+                        : <p className="text-xs text-muted-foreground">You can type any city in the world</p>}
                     </div>
 
                     {/* Base */}
@@ -755,13 +789,16 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -4 }}
                               transition={{ duration: 0.15 }}
-                              className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-auto"
+                              className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-auto"
                             >
                               {baseSuggestions.map((n, i) => (
                                 <button key={i} type="button"
                                   onClick={() => { setNewItinerary({ ...newItinerary, base: n }); setShowBaseSuggestions(false); }}
-                                  className="w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-900 text-sm border-b border-slate-100 last:border-0 transition-colors"
-                                >{n}</button>
+                                  className="w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-900 text-sm border-b border-slate-100 last:border-0 transition-colors flex items-center gap-3"
+                                >
+                                  <PlaceThumb location={`${n}, ${newItinerary.location.split(',')[0]}`} />
+                                  <span className="font-medium">{n}</span>
+                                </button>
                               ))}
                             </motion.div>
                           )}

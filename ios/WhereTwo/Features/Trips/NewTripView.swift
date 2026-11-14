@@ -8,6 +8,8 @@ struct NewTripView: View {
     var onCreated: (Itinerary) -> Void
 
     @State private var destination = ""
+    /// The destination as of the last pause in typing, so the photo preview doesn't search on every keystroke.
+    @State private var previewLocation = ""
     @State private var base = ""
     @State private var title = ""
     @State private var startDate = Calendar.current.date(byAdding: .day, value: 14, to: .now) ?? .now
@@ -62,6 +64,24 @@ struct NewTripView: View {
                 Section {
                     TextField("Destination, e.g. Tokyo", text: $destination)
                         .textInputAutocapitalization(.words)
+                        .task(id: destination) {
+                            try? await Task.sleep(for: .milliseconds(600))
+                            guard !Task.isCancelled else { return }
+                            previewLocation = destination.trimmingCharacters(in: .whitespaces)
+                        }
+                    if !previewLocation.isEmpty {
+                        // Booking-style preview of the place, from its Wikipedia photo.
+                        PlacePhotoBackground(location: previewLocation)
+                            .frame(height: 140)
+                            .overlay(alignment: .bottomLeading) {
+                                Text(previewLocation.split(separator: ",").first.map(String.init) ?? previewLocation)
+                                    .font(Theme.display(22))
+                                    .foregroundStyle(.white)
+                                    .padding(12)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    }
                     TextField("Where you're staying, e.g. Shibuya", text: $base)
                         .textInputAutocapitalization(.words)
                     TextField("Trip name (optional)", text: $title)

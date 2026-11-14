@@ -2,11 +2,11 @@ import { parseISO, differenceInCalendarDays } from 'date-fns';
 
 // Shared by the trips list and the trip page (and mirrored in the iOS app's Theme.swift).
 
-export const INK = '#0E1F4D';
-export const SLATE = '#5B6B8C';
-export const MIST = '#DDE4F3';
-export const PAPER = '#F4F6FB';
-export const TODAY = '#F5A524';
+export const INK = '#1B1F27';
+export const SLATE = '#5F6776';
+export const MIST = '#E3E6EB';
+export const PAPER = '#F6F7F9';
+export const TODAY = '#0B6BCB';
 
 export function splitPlace(location: string) {
   const [city, ...rest] = (location || '').split(',').map((part) => part.trim());

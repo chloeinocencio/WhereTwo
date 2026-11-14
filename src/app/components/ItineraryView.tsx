@@ -16,9 +16,9 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
 import {
-  ArrowLeft, MapPin, Calendar, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation,
-  Info, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
-  ExternalLink, Map as MapIcon, Search, BedDouble,
+  ArrowLeft, MapPin, Calendar, UserPlus, Edit2, Check, X,
+  ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
+  ExternalLink, Search, BedDouble,
 } from 'lucide-react';
 import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
@@ -99,7 +99,7 @@ function parseDescription(description: string) {
       sections.hours += (sections.hours ? '. ' : '') + line;
     else if (l.includes('¥') || l.includes('$') || l.includes('€') || l.includes('£') || l.includes('entry') || l.includes('admission') || l.includes('free'))
       sections.price += (sections.price ? '. ' : '') + line;
-    else if (/\b(minute|min)s?\s+walk|\bwalk\s+(from|to)\b|\bstation\b|\bmetro\b|\bsubway\b|\btrain\b|\bbus\b|\btaxi\b/.test(l))
+    else if (/\b(minute|min)s?\s+(walk|ride|drive)|\bwalk\s+from\b|\bstation\b|\bmetro\b|\bsubway\b|\btrain\b|\bbus\b|\btaxi\b/.test(l))
       sections.transit += (sections.transit ? '. ' : '') + line;
     else if (l.includes('reservation') || l.includes('book') || l.includes('wait') || l.includes('best') || l.includes('arrive') || l.includes('avoid'))
       sections.tips += (sections.tips ? '. ' : '') + line;
@@ -131,10 +131,6 @@ interface ActivityCardProps {
   location?: string;
   /** Show the time-slot label (only on the first stop of each slot). */
   showSlot?: boolean;
-  /** Last stop of the day: the route line stops here. */
-  isLast?: boolean;
-  /** Position in the day (1-based), shown on the marker when there's no photo. */
-  number?: number;
   /** Where the trip is staying, so stop photo matching can ignore the neighborhood's name. */
   base?: string;
   onEdit: () => void;
@@ -162,130 +158,144 @@ function SortableActivityCard(props: ActivityCardProps) {
   );
 }
 
-function StopMarker({ name, location, base, number }: { name: string; location: string; base?: string; number?: number }) {
-  const photo = useStopPhoto(name, location, base);
+/**
+ * A stop's photo, Booking-style: the place's own Wikipedia photo, or the destination's
+ * photo when the stop doesn't have one, so every card has the same shape.
+ */
+function StopPhoto({ name, location, base }: { name: string; location: string; base?: string }) {
+  const own = useStopPhoto(name, location, base);
+  const city = usePlacePhoto(location);
+  const photo = own || city;
   return (
-    <div className="absolute left-0 top-0 h-10 w-10 overflow-hidden rounded-full bg-white ring-2 ring-white shadow-[0_0_0_1px_#DDE4F3]">
-      {photo ? (
-        <a href={photo.creditUrl} target="_blank" rel="noopener noreferrer" title="Photo: Wikimedia Commons" onClick={(e) => e.stopPropagation()}>
-          <img src={photo.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+    <div className="relative h-44 w-full shrink-0 bg-[#EEF0F3] sm:h-auto sm:min-h-[168px] sm:w-56">
+      {photo && <img src={photo.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
+      {photo && (
+        <a
+          href={photo.creditUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-1.5 left-2 rounded bg-black/35 px-1.5 py-0.5 text-[10px] text-white/90 hover:bg-black/55"
+        >
+          {own ? 'Photo: Wikimedia Commons' : `${location.split(',')[0]} · Wikimedia Commons`}
         </a>
-      ) : (
-        <span className="grid h-full w-full place-items-center font-display text-[15px] font-bold" style={{ color: INK, background: '#E9EEF8' }}>
-          {number ?? ''}
-        </span>
       )}
     </div>
   );
 }
 
 function ActivityCardInner({
-  activity, isEditing, editedActivity, isDragging = false, location = '', showSlot = true, isLast = false,
-  number, base, onEdit, onDelete, onSave, onCancel, onEditedChange, dragHandleProps,
+  activity, isEditing, editedActivity, isDragging = false, location = '', showSlot = true,
+  base, onEdit, onDelete, onSave, onCancel, onEditedChange, dragHandleProps,
 }: ActivityCardProps & { dragHandleProps?: any }) {
   const parsed = parseDescription(activity.description || '');
   const { name, address } = splitTitle(activity.title);
   const facts = [
-    { text: parsed.hours, icon: Clock },
-    { text: parsed.price, icon: DollarSign },
-    { text: parsed.transit, icon: Navigation },
-    { text: parsed.tips, icon: Info },
+    { label: 'Hours', text: parsed.hours },
+    { label: 'Cost', text: parsed.price },
+    { label: 'Getting there', text: parsed.transit },
+    { label: 'Tip', text: parsed.tips },
   ].filter((f) => f.text);
 
   return (
-    <div className={`group grid sm:grid-cols-[96px_minmax(0,1fr)] sm:gap-x-6 ${isDragging ? 'rounded-2xl bg-white shadow-xl ring-1 ring-[#DDE4F3] px-4 pt-4' : ''}`}>
-      {/* Time of day, aligned with the stop's marker */}
-      <div className="hidden sm:block pt-2 text-right text-sm font-medium" style={{ color: '#5B6B8C' }}>
-        {showSlot ? activity.timeSlot : ''}
-      </div>
+    <div className="pb-4">
+      {showSlot && !isDragging && (
+        <h3 className="mb-3 mt-4 text-[15px] font-semibold" style={{ color: INK }}>{activity.timeSlot}</h3>
+      )}
+      <article
+        className={`group flex flex-col overflow-hidden rounded-2xl bg-white sm:flex-row ${
+          isDragging ? 'shadow-xl ring-1 ring-primary/40' : 'ring-1 ring-[#E3E6EB] transition-shadow hover:shadow-[0_8px_24px_-16px_rgba(27,31,39,0.45)]'
+        }`}
+      >
+        <StopPhoto name={name} location={location} base={base} />
 
-      <div className="relative pl-14 pb-9">
-        {/* Route line to the next stop */}
-        {!isLast && <div className="absolute left-[19px] top-11 bottom-0 w-[2px] rounded-full" style={{ background: MIST }} />}
-        {/* Stop marker: a photo of the place when Wikipedia has one, otherwise its number in the day */}
-        <StopMarker name={name} location={location} base={base} number={number} />
-
-        {isEditing ? (
-          <div className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-[#DDE4F3]">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Title</Label>
-              <Input value={editedActivity.title} onChange={(e) => onEditedChange({ ...editedActivity, title: e.target.value })} className="h-9 text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Description</Label>
-              <Textarea value={editedActivity.description} onChange={(e) => onEditedChange({ ...editedActivity, description: e.target.value })} className="text-sm resize-none" rows={3} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Notes</Label>
-              <Textarea value={editedActivity.notes || ''} onChange={(e) => onEditedChange({ ...editedActivity, notes: e.target.value })} placeholder="Reservations, who's paying, what to bring…" className="text-sm resize-none" rows={2} />
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" onClick={onSave} className="h-8"><Check className="w-3.5 h-3.5 mr-1.5" />Save</Button>
-              <Button size="sm" variant="outline" onClick={onCancel} className="h-8"><X className="w-3.5 h-3.5 mr-1.5" />Cancel</Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex min-h-10 flex-wrap items-center gap-x-3 text-sm" style={{ color: '#5B6B8C' }}>
-              {showSlot && <span className="font-medium sm:hidden">{activity.timeSlot}</span>}
-              {activity.duration && <span>{activity.duration}</span>}
-            </div>
-
-            <h4 className="font-display text-[19px] font-semibold leading-snug tracking-[-0.01em]" style={{ color: INK }}>{name}</h4>
-            {address && <p className="mt-0.5 text-sm" style={{ color: '#5B6B8C' }}>{address}</p>}
-
-            {parsed.main && (
-              <p className="mt-2.5 max-w-[62ch] text-[15px] leading-relaxed" style={{ color: '#3A4A6B' }}>{parsed.main}</p>
-            )}
-
-            {facts.length > 0 && (
-              <ul className="mt-3 max-w-[62ch] space-y-1.5">
-                {facts.map(({ text, icon: FactIcon }, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm leading-snug" style={{ color: '#4A5A7A' }}>
-                    <FactIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" />
-                    <span>{text}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {activity.notes && (
-              <p className="mt-3 max-w-[62ch] rounded-xl bg-white px-3.5 py-2.5 text-sm ring-1 ring-[#DDE4F3]" style={{ color: '#3A4A6B' }}>
-                <span className="font-semibold" style={{ color: INK }}>Note: </span>{activity.notes}
-              </p>
-            )}
-
-            <div className="mt-3 flex items-center gap-1">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.title + (location ? `, ${location}` : ''))}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-primary hover:bg-primary/8"
-              >
-                <MapIcon className="h-4 w-4" />Directions
-              </a>
-              {/* Edit controls: always visible on touch, revealed on hover/focus with a mouse */}
-              <div className="ml-auto flex items-center gap-0.5 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-                <button onClick={onEdit} className="rounded-lg p-2 text-[#5B6B8C] hover:bg-white hover:text-primary" aria-label="Edit stop">
-                  <Edit2 className="h-4 w-4" />
-                </button>
-                <button onClick={onDelete} className="rounded-lg p-2 text-[#5B6B8C] hover:bg-destructive/10 hover:text-destructive" aria-label="Remove stop">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <button
-                  {...dragHandleProps}
-                  className="cursor-grab touch-none rounded-lg p-2 text-[#5B6B8C] hover:bg-white active:cursor-grabbing"
-                  aria-label="Drag to reorder"
-                  title="Drag to reorder"
-                >
-                  <GripVertical className="h-4 w-4" />
-                </button>
+        <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
+          {isEditing ? (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Title</Label>
+                <Input value={editedActivity.title} onChange={(e) => onEditedChange({ ...editedActivity, title: e.target.value })} className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Description</Label>
+                <Textarea value={editedActivity.description} onChange={(e) => onEditedChange({ ...editedActivity, description: e.target.value })} className="text-sm resize-none" rows={3} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Notes</Label>
+                <Textarea value={editedActivity.notes || ''} onChange={(e) => onEditedChange({ ...editedActivity, notes: e.target.value })} placeholder="Reservations, who's paying, what to bring…" className="text-sm resize-none" rows={2} />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={onSave} className="h-8"><Check className="w-3.5 h-3.5 mr-1.5" />Save</Button>
+                <Button size="sm" variant="outline" onClick={onCancel} className="h-8"><X className="w-3.5 h-3.5 mr-1.5" />Cancel</Button>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="font-display text-lg font-semibold leading-snug" style={{ color: INK }}>{name}</h4>
+                  {address && <p className="mt-0.5 text-sm" style={{ color: '#5F6776' }}>{address}</p>}
+                </div>
+                {activity.duration && (
+                  <span className="shrink-0 rounded-full bg-[#EEF0F3] px-2.5 py-1 text-xs font-medium" style={{ color: '#3D4350' }}>
+                    {activity.duration}
+                  </span>
+                )}
+              </div>
+
+              {parsed.main && (
+                <p className="mt-2 text-[15px] leading-relaxed" style={{ color: '#3D4350' }}>{parsed.main}</p>
+              )}
+
+              {facts.length > 0 && (
+                <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
+                  {facts.map(({ label, text }) => (
+                    <div key={label} className="contents">
+                      <dt className="font-medium" style={{ color: INK }}>{label}</dt>
+                      <dd className="mb-1.5 sm:mb-0" style={{ color: '#4B5260' }}>{text}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              {activity.notes && (
+                <p className="mt-3 rounded-lg bg-[#F6F7F9] px-3 py-2 text-sm" style={{ color: '#3D4350' }}>
+                  <span className="font-semibold" style={{ color: INK }}>Note: </span>{activity.notes}
+                </p>
+              )}
+
+              <div className="mt-auto flex items-center gap-1 pt-3">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.title + (location ? `, ${location}` : ''))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="-ml-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary hover:bg-primary/8"
+                >
+                  Directions
+                </a>
+                {/* Edit controls: always visible on touch, revealed on hover/focus with a mouse */}
+                <div className="ml-auto flex items-center gap-0.5 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+                  <button onClick={onEdit} className="rounded-lg p-2 text-[#5F6776] hover:bg-[#F6F7F9] hover:text-primary" aria-label="Edit stop">
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                  <button onClick={onDelete} className="rounded-lg p-2 text-[#5F6776] hover:bg-destructive/10 hover:text-destructive" aria-label="Remove stop">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    {...dragHandleProps}
+                    className="cursor-grab touch-none rounded-lg p-2 text-[#5F6776] hover:bg-[#F6F7F9] active:cursor-grabbing"
+                    aria-label="Drag to reorder"
+                    title="Drag to reorder"
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </article>
     </div>
   );
 }
@@ -586,14 +596,14 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const flights: any[] = itinerary.flights || [];
 
   return (
-    <div id="trip-scroll" className="size-full overflow-auto bg-[#F4F6FB]">
+    <div id="trip-scroll" className="size-full overflow-auto bg-[#F6F7F9]">
 
       {/* ── Header: trip name over the travel photo ──────────────────────────── */}
       <header className="relative overflow-hidden text-white" style={{ background: INK }}>
         {/* The destination's own photo once it's found; the default travel photo until then */}
         <img src={placePhoto?.url || headerBg} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
         {/* Darken toward the bottom-left, where the title and details sit, so they stay readable */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0E1F4D]/90 via-[#0E1F4D]/55 to-[#0E1F4D]/25" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1B1F27]/90 via-[#1B1F27]/55 to-[#1B1F27]/25" />
         <div className="relative max-w-5xl mx-auto px-5 sm:px-8 pt-4 pb-6">
           <div className="flex items-center justify-between gap-3">
             <Button
@@ -662,7 +672,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 <span
                   key={name}
                   title={`@${name}`}
-                  className="grid h-8 w-8 place-items-center rounded-full bg-white text-sm font-semibold ring-2 ring-[#0E1F4D]/60"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white text-sm font-semibold ring-2 ring-[#1B1F27]/60"
                   style={{ color: INK }}
                 >
                   {name?.[0]?.toUpperCase()}
@@ -677,7 +687,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
       </header>
 
       {/* ── Day strip + view switcher ──────────────────────────────────────── */}
-      <nav id="trip-days" className="sticky top-0 z-20 border-b bg-[#F4F6FB]/95 backdrop-blur" style={{ borderColor: MIST }} aria-label="Trip days">
+      <nav id="trip-days" className="sticky top-0 z-20 border-b bg-[#F6F7F9]/95 backdrop-blur" style={{ borderColor: MIST }} aria-label="Trip days">
         <div className="max-w-5xl mx-auto px-5 sm:px-8 py-3 flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
           <div className="flex flex-1 gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
             {itinerary.plan.map((day: any, i: number) => {
@@ -691,7 +701,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                   onClick={() => selectDay(i)}
                   aria-current={selected ? 'date' : undefined}
                   className={`relative w-[86px] shrink-0 rounded-2xl px-3 py-2.5 text-left transition-colors ${
-                    selected ? 'text-white' : 'bg-white ring-1 ring-[#DDE4F3] hover:ring-[#B9C6E6]'
+                    selected ? 'text-white' : 'bg-white ring-1 ring-[#E3E6EB] hover:ring-[#C9CED6]'
                   }`}
                   style={selected ? { background: INK } : { color: INK }}
                 >
@@ -699,11 +709,11 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                     <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full" style={{ background: TODAY }} aria-label="Today" />
                   )}
                   <span className="font-display block text-[26px] font-bold leading-none">{day.day}</span>
-                  <span className={`mt-1 block text-xs ${selected ? 'text-white/75' : 'text-[#5B6B8C]'}`}>
+                  <span className={`mt-1 block text-xs ${selected ? 'text-white/75' : 'text-[#5F6776]'}`}>
                     {date ? format(date, 'EEE d') : `Day ${day.day}`}
                   </span>
                   {w && (
-                    <span className={`mt-1 flex items-center gap-1 text-xs font-medium ${selected ? 'text-white/90' : 'text-[#3A4A6B]'}`}>
+                    <span className={`mt-1 flex items-center gap-1 text-xs font-medium ${selected ? 'text-white/90' : 'text-[#3D4350]'}`}>
                       <WeatherIcon code={w.code} size={14} />{w.tempMax}°
                     </span>
                   )}
@@ -712,7 +722,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
             })}
           </div>
 
-          <div className="flex shrink-0 self-start rounded-full bg-white p-1 ring-1 ring-[#DDE4F3] sm:self-auto" role="tablist">
+          <div className="flex shrink-0 self-start rounded-full bg-white p-1 ring-1 ring-[#E3E6EB] sm:self-auto" role="tablist">
             {([
               { id: 'plan', label: 'Plan' },
               { id: 'map', label: 'Map' },
@@ -724,7 +734,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                  activeTab === tab.id ? 'text-white' : 'text-[#5B6B8C] hover:text-[#0E1F4D]'
+                  activeTab === tab.id ? 'text-white' : 'text-[#5F6776] hover:text-[#1B1F27]'
                 }`}
                 style={activeTab === tab.id ? { background: INK } : undefined}
               >
@@ -756,7 +766,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
       )}
 
       {/* ── Main content ───────────────────────────────────────────────────── */}
-      <main className="bg-[#F4F6FB]">
+      <main className="bg-[#F6F7F9]">
         <AnimatePresence mode="wait">
 
           {/* ════ FLIGHTS TAB ════ */}
@@ -920,16 +930,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="max-w-5xl mx-auto px-5 sm:px-8 pt-8 pb-16"
+                className="max-w-4xl mx-auto px-5 sm:px-8 pt-8 pb-16"
               >
                 {/* Day heading */}
-                <div className="mb-8 sm:pl-[120px]">
+                <div className="mb-4">
                   <h2 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-[-0.02em]" style={{ color: INK }}>
                     {date ? format(date, 'EEEE, MMMM d') : `Day ${day.day}`}
                   </h2>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px]" style={{ color: '#5B6B8C' }}>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px]" style={{ color: '#5F6776' }}>
                     {isToday && (
-                      <span className="rounded-full px-2.5 py-0.5 text-sm font-semibold" style={{ background: '#FDF0D9', color: '#8A5300' }}>Today</span>
+                      <span className="rounded-full px-2.5 py-0.5 text-sm font-semibold" style={{ background: '#E7F0FC', color: '#0B5CAD' }}>Today</span>
                     )}
                     <span>Day {day.day} of {itinerary.plan.length}</span>
                     {w && (
@@ -959,8 +969,6 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                           editedActivity={editedActivity}
                           location={itinerary.location}
                           showSlot={i === 0 || day.activities[i - 1].timeSlot !== activity.timeSlot}
-                          isLast={i === day.activities.length - 1}
-                          number={i + 1}
                           base={itinerary.base}
                           onEdit={() => handleEditActivity(dayIndex, activity.id)}
                           onDelete={() => handleDeleteActivity(dayIndex, activity.id)}
@@ -982,7 +990,6 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                           isEditing={false}
                           editedActivity={null}
                           isDragging={true}
-                          isLast
                           onEdit={() => {}}
                           onDelete={() => {}}
                           onSave={() => {}}
@@ -995,16 +1002,16 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 </DndContext>
 
                 {day.activities.length === 0 && (
-                  <p className="mb-6 sm:pl-[120px] text-[15px]" style={{ color: '#5B6B8C' }}>
+                  <p className="mb-6 text-[15px]" style={{ color: '#5F6776' }}>
                     Nothing planned yet. Add a stop, or keep the day free to wander.
                   </p>
                 )}
 
                 {/* Add a stop */}
-                <div className="sm:pl-[120px]">
+                <div className="mt-2">
                   <button
                     onClick={() => { setAddActivityDayIndex(dayIndex); setAddActivityOpen(true); }}
-                    className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-3 text-[15px] font-medium text-[#5B6B8C] transition-colors hover:border-primary/50 hover:text-primary"
+                    className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-3 text-[15px] font-medium text-[#5F6776] transition-colors hover:border-primary/50 hover:text-primary"
                     style={{ borderColor: MIST }}
                   >
                     <Plus className="h-5 w-5" />
@@ -1014,14 +1021,14 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
 
                 {/* Previous / next day */}
                 {itinerary.plan.length > 1 && (
-                  <div className="mt-10 flex items-center justify-between sm:pl-[120px]">
+                  <div className="mt-10 flex items-center justify-between">
                     {dayIndex > 0 ? (
-                      <Button variant="ghost" onClick={() => selectDay(dayIndex - 1)} className="-ml-3 text-[#3A4A6B]">
+                      <Button variant="ghost" onClick={() => selectDay(dayIndex - 1)} className="-ml-3 text-[#3D4350]">
                         <ChevronLeft className="mr-1 h-4 w-4" />Day {itinerary.plan[dayIndex - 1].day}
                       </Button>
                     ) : <span />}
                     {dayIndex < itinerary.plan.length - 1 && (
-                      <Button variant="ghost" onClick={() => selectDay(dayIndex + 1)} className="-mr-3 text-[#3A4A6B]">
+                      <Button variant="ghost" onClick={() => selectDay(dayIndex + 1)} className="-mr-3 text-[#3D4350]">
                         Day {itinerary.plan[dayIndex + 1].day}<ChevronRight className="ml-1 h-4 w-4" />
                       </Button>
                     )}

@@ -188,10 +188,10 @@ struct TripDetailView: View {
                 if trip.dayNumber() == selectedDay {
                     Text("Today")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color(red: 0x8A / 255, green: 0x53 / 255, blue: 0))
+                        .foregroundStyle(Color(hex: 0x0B5CAD))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 3)
-                        .background(Color(red: 0xFD / 255, green: 0xF0 / 255, blue: 0xD9 / 255), in: Capsule())
+                        .background(Color(hex: 0xE7F0FC), in: Capsule())
                 }
                 Text("Day \(selectedDay) of \(trip.plan.count)")
                     .font(.subheadline)
@@ -210,10 +210,8 @@ struct TripDetailView: View {
                         item: item,
                         place: trip.location,
                         neighborhood: trip.base,
-                        number: index + 1,
                         isDone: store.isCompleted(trip: trip.id, day: selectedDay, index: index),
-                        showSlot: index == 0 || plan.activities[index - 1].timeSlot != item.timeSlot,
-                        isLast: index == plan.activities.count - 1
+                        showSlot: index == 0 || plan.activities[index - 1].timeSlot != item.timeSlot
                     ) {
                         store.toggleCompleted(trip: trip, day: selectedDay, index: index)
                     }

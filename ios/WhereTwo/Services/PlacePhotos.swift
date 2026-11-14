@@ -205,52 +205,34 @@ struct PlacePhotoBackground: View {
     }
 }
 
-/// A stop's marker on the day's route: a photo of the place when Wikipedia has one,
-/// otherwise the stop's number in the day. Shows a check when the stop is done.
-struct StopMarker: View {
+/// A stop's photo, Booking-style: the place's own Wikipedia photo, or the destination's photo
+/// when the stop doesn't have one, so every card has the same shape.
+struct StopPhoto: View {
     let name: String
     let location: String
     let neighborhood: String
-    let number: Int
-    let isDone: Bool
 
-    @State private var photo: PlacePhoto?
+    @State private var own: PlacePhoto?
+    @State private var city: PlacePhoto?
 
     var body: some View {
-        ZStack {
-            Circle().fill(Color(hex: 0xE9EEF8))
-            if let photo {
-                AsyncImage(url: photo.url) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        numberLabel
-                    }
+        ZStack(alignment: .bottomLeading) {
+            Color(hex: 0xEEF0F3)
+            if let photo = own ?? city {
+                AsyncImage(url: photo.url, transaction: Transaction(animation: .easeOut(duration: 0.3))) { phase in
+                    if let image = phase.image { image.resizable().scaledToFill() }
                 }
-            } else {
-                numberLabel
-            }
-            if isDone {
-                Circle().fill(Theme.ink.opacity(0.75))
-                Image(systemName: "checkmark")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .transition(.scale.combined(with: .opacity))
             }
         }
-        .frame(width: 40, height: 40)
-        .clipShape(Circle())
-        .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+        .clipped()
         .task(id: name) {
-            let key = PlacePhotos.stopKey(name, in: location)
-            if let hit = PlacePhotos.shared.cached(key) { photo = hit }
-            photo = await PlacePhotos.shared.stop(name, in: location, neighborhood: neighborhood)
+            let stopKey = PlacePhotos.stopKey(name, in: location)
+            if let hit = PlacePhotos.shared.cached(stopKey) { own = hit }
+            if let hit = PlacePhotos.shared.cached(PlacePhotos.destinationKey(location)) { city = hit }
+            async let stop = PlacePhotos.shared.stop(name, in: location, neighborhood: neighborhood)
+            async let place = PlacePhotos.shared.destination(location)
+            own = await stop
+            city = await place
         }
-    }
-
-    private var numberLabel: some View {
-        Text("\(number)")
-            .font(Theme.display(15))
-            .foregroundStyle(Theme.ink)
     }
 }

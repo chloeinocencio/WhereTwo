@@ -1,102 +1,103 @@
 import SwiftUI
 
-/// One stop on the day's route, matching the web trip page: a marker (a photo of the place,
-/// or its number in the day) on a vertical route line, the time of day when it changes, then
-/// the place and details. Tapping the marker checks the stop off.
+/// One stop in the day, as a Booking-style card matching the web: the place's photo on the
+/// left, the name, address and details on the right. The time of day is shown above the
+/// first stop of each slot. The check button marks the stop done.
 struct PlanItemRow: View {
     let item: PlanItem
     let place: String
     /// Where the trip is staying, so photo matching can ignore the neighborhood's name.
     let neighborhood: String
-    /// Position in the day (1-based).
-    let number: Int
     let isDone: Bool
-    /// Show the time-of-day label (only on the first stop of each slot).
+    /// Show the time-of-day heading (only on the first stop of each slot).
     let showSlot: Bool
-    /// The route line stops after the last stop.
-    let isLast: Bool
     let onToggle: () -> Void
 
     @State private var expanded = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            marker
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 10) {
-                    if showSlot, !item.timeSlot.isEmpty {
-                        Text(item.timeSlot).fontWeight(.medium)
-                    }
-                    if !item.duration.isEmpty {
-                        Text(item.duration)
-                    }
-                }
-                .font(.subheadline)
-                .foregroundStyle(Theme.slate)
-                .frame(minHeight: 40, alignment: .center)
-
-                Text(item.shortTitle)
-                    .font(Theme.display(19, .semibold))
-                    .foregroundStyle(isDone ? Theme.slate : Theme.ink)
-                    .strikethrough(isDone, color: Theme.slate)
-                if let address = item.address {
-                    Text(address)
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.slate)
-                        .padding(.top, 2)
-                }
-
-                if !item.description.isEmpty {
-                    Text(item.description)
-                        .font(.callout)
-                        .foregroundStyle(Theme.ink.opacity(0.78))
-                        .lineLimit(expanded ? nil : 4)
-                        .padding(.top, 8)
-                        .contentShape(Rectangle())
-                        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
-                }
-
-                if let notes = item.notes, !notes.isEmpty {
-                    (Text("Note: ").fontWeight(.semibold).foregroundStyle(Theme.ink) + Text(notes))
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.ink.opacity(0.78))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.mist))
-                        .padding(.top, 10)
-                }
-
-                Link(destination: mapsURL) {
-                    Label("Directions", systemImage: "map")
-                        .font(.subheadline.weight(.medium))
-                }
-                .tint(Theme.blue)
-                .padding(.top, 10)
+        VStack(alignment: .leading, spacing: 10) {
+            if showSlot, !item.timeSlot.isEmpty {
+                Text(item.timeSlot)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.ink)
+                    .padding(.top, 6)
             }
-            .padding(.bottom, 30)
-            .opacity(isDone ? 0.7 : 1)
-        }
-        // Route line down to the next stop, under the marker's center.
-        .background(alignment: .topLeading) {
-            if !isLast {
-                Capsule()
-                    .fill(Theme.mist)
-                    .frame(width: 2)
+
+            HStack(alignment: .top, spacing: 0) {
+                StopPhoto(name: item.shortTitle, location: place, neighborhood: neighborhood)
+                    .frame(width: 112)
                     .frame(maxHeight: .infinity)
-                    .padding(.top, 46)
-                    .padding(.leading, 19)
+                    .saturation(isDone ? 0 : 1)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.shortTitle)
+                                .font(Theme.display(17, .semibold))
+                                .foregroundStyle(Theme.ink)
+                                .strikethrough(isDone, color: Theme.slate)
+                            if let address = item.address {
+                                Text(address)
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.slate)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                        checkButton
+                    }
+
+                    if !item.description.isEmpty {
+                        Text(item.description)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.ink.opacity(0.75))
+                            .lineLimit(expanded ? nil : 3)
+                            .contentShape(Rectangle())
+                            .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
+                    }
+
+                    if let notes = item.notes, !notes.isEmpty {
+                        (Text("Note: ").fontWeight(.semibold).foregroundStyle(Theme.ink) + Text(notes))
+                            .font(.footnote)
+                            .foregroundStyle(Theme.ink.opacity(0.75))
+                    }
+
+                    HStack {
+                        Link("Directions", destination: mapsURL)
+                            .font(.subheadline.weight(.semibold))
+                            .tint(Theme.blue)
+                        Spacer()
+                        if !item.duration.isEmpty {
+                            Text(item.duration)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Theme.ink.opacity(0.75))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color(hex: 0xEEF0F3), in: Capsule())
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(minHeight: 140)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.mist))
+            .opacity(isDone ? 0.75 : 1)
         }
+        .padding(.bottom, 12)
         .animation(.easeInOut(duration: 0.2), value: isDone)
     }
 
-    /// The stop's marker doubles as its check-off button.
-    private var marker: some View {
+    private var checkButton: some View {
         Button(action: onToggle) {
-            StopMarker(name: item.shortTitle, location: place, neighborhood: neighborhood, number: number, isDone: isDone)
+            Image(systemName: isDone ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(isDone ? Theme.blue : Theme.slate.opacity(0.6))
+                .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.success, trigger: isDone) { _, new in new }

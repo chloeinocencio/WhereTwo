@@ -4,7 +4,7 @@ import SwiftUI
 /// extension can use them too.
 enum Theme {
     static let navy = Color(red: 0x18 / 255, green: 0x30 / 255, blue: 0x59 / 255)
-    static let blue = Color(red: 0x27 / 255, green: 0x6F / 255, blue: 0xBF / 255)
+    static let blue = Color(red: 0x0B / 255, green: 0x6B / 255, blue: 0xCB / 255)
     static let sky = Color(red: 0x5B / 255, green: 0x9B / 255, blue: 0xE0 / 255)
     static let cream = Color(red: 0xF6 / 255, green: 0xF4 / 255, blue: 0xF3 / 255)
 
@@ -14,13 +14,13 @@ enum Theme {
     static let iconBottom = Color(red: 0x68 / 255, green: 0x95 / 255, blue: 0xFD / 255)
 
     /// Text and selected states on the trip page.
-    static let ink = Color(red: 0x0E / 255, green: 0x1F / 255, blue: 0x4D / 255)
+    static let ink = Color(red: 0x1B / 255, green: 0x1F / 255, blue: 0x27 / 255)
     /// Secondary text on the trip page.
-    static let slate = Color(red: 0x5B / 255, green: 0x6B / 255, blue: 0x8C / 255)
+    static let slate = Color(red: 0x5F / 255, green: 0x67 / 255, blue: 0x76 / 255)
     /// Route lines and tile outlines.
-    static let mist = Color(red: 0xDD / 255, green: 0xE4 / 255, blue: 0xF3 / 255)
+    static let mist = Color(red: 0xE3 / 255, green: 0xE6 / 255, blue: 0xEB / 255)
     /// "Today" marker.
-    static let today = Color(red: 0xF5 / 255, green: 0xA5 / 255, blue: 0x24 / 255)
+    static let today = Color(red: 0x0B / 255, green: 0x6B / 255, blue: 0xCB / 255)
 
     static let headerGradient = LinearGradient(
         colors: [iconTop, iconMid, iconBottom],
