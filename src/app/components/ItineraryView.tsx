@@ -24,6 +24,7 @@ import {
 import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
 import logo from '../../assets/logo.png';
+import headerBg from '../../assets/header.jpg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ItineraryViewProps {
@@ -598,12 +599,12 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   return (
     <div id="trip-scroll" className="size-full overflow-auto bg-[#F4F6FB]">
 
-      {/* ── Header: trip name on the brand gradient ─────────────────────────── */}
-      <header
-        className="shrink-0 text-white"
-        style={{ background: 'linear-gradient(128deg, #001F65 0%, #1F3F97 52%, #6895FD 100%)' }}
-      >
-        <div className="max-w-5xl mx-auto px-5 sm:px-8 pt-4 pb-6">
+      {/* ── Header: trip name over the travel photo ──────────────────────────── */}
+      <header className="relative overflow-hidden text-white" style={{ background: INK }}>
+        <img src={headerBg} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
+        {/* Darken toward the bottom-left, where the title and details sit, so they stay readable */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0E1F4D]/90 via-[#0E1F4D]/55 to-[#0E1F4D]/25" />
+        <div className="relative max-w-5xl mx-auto px-5 sm:px-8 pt-4 pb-6">
           <div className="flex items-center justify-between gap-3">
             <Button
               variant="ghost" size="icon" onClick={onBack}
@@ -660,7 +661,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 <span
                   key={name}
                   title={`@${name}`}
-                  className="grid h-8 w-8 place-items-center rounded-full bg-white text-sm font-semibold ring-2 ring-[#1F3F97]"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white text-sm font-semibold ring-2 ring-[#0E1F4D]/60"
                   style={{ color: INK }}
                 >
                   {name?.[0]?.toUpperCase()}

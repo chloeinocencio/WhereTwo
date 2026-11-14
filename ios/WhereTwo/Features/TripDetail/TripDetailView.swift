@@ -408,7 +408,22 @@ private struct TripHeader: View {
         .padding(.horizontal, 20)
         .padding(.top, 8)
         .padding(.bottom, 24)
-        .background(Theme.headerGradient.ignoresSafeArea(edges: .top))
+        .background {
+            // The same travel photo as the web header, darkened toward the bottom
+            // where the title and details sit.
+            ZStack {
+                Image("AuthBackground")
+                    .resizable()
+                    .scaledToFill()
+                LinearGradient(
+                    colors: [Theme.ink.opacity(0.25), Theme.ink.opacity(0.55), Theme.ink.opacity(0.9)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea(edges: .top)
+            .clipped()
+        }
     }
 
     private func avatar(_ name: String) -> some View {
@@ -416,7 +431,7 @@ private struct TripHeader: View {
             .font(.footnote.weight(.semibold))
             .frame(width: 32, height: 32)
             .background(.white, in: Circle())
-            .overlay(Circle().strokeBorder(Theme.iconMid, lineWidth: 2))
+            .overlay(Circle().strokeBorder(Theme.ink.opacity(0.6), lineWidth: 2))
             .foregroundStyle(Theme.ink)
             .accessibilityLabel("@\(name)")
     }
