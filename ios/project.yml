@@ -1,0 +1,88 @@
+# XcodeGen spec — run `xcodegen generate` in this folder to create WhereTwo.xcodeproj.
+# The .xcodeproj is generated, so it's gitignored; edit this file instead.
+name: WhereTwo
+
+options:
+  bundleIdPrefix: com.chloeinocencio
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    # Set your Apple Developer team ID here (Xcode → Settings → Accounts) or in Signing & Capabilities.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"
+
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.0.0"
+
+targets:
+  WhereTwo:
+    type: application
+    platform: iOS
+    sources:
+      - path: WhereTwo
+      - path: Shared
+    dependencies:
+      - package: Supabase
+      - target: WhereTwoWidgets
+        embed: true
+    info:
+      path: WhereTwo/Info.plist
+      properties:
+        CFBundleDisplayName: WhereTwo
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        NSSupportsLiveActivities: true
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.chloeinocencio.wheretwo
+            CFBundleURLSchemes:
+              - wheretwo
+    entitlements:
+      path: WhereTwo/WhereTwo.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.chloeinocencio.wheretwo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chloeinocencio.wheretwo
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  WhereTwoWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WhereTwoWidgets
+      - path: Shared
+    info:
+      path: WhereTwoWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: WhereTwo
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: WhereTwoWidgets/WhereTwoWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.chloeinocencio.wheretwo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chloeinocencio.wheretwo.widgets
