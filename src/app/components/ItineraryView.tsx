@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
-import { INK, MIST, TODAY, getActivityKind } from '../../lib/tripVisuals';
-import { usePlacePhoto } from '../../lib/placePhotos';
+import { INK, MIST, TODAY } from '../../lib/tripVisuals';
+import { usePlacePhoto, useStopPhoto } from '../../lib/placePhotos';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 
@@ -133,6 +133,10 @@ interface ActivityCardProps {
   showSlot?: boolean;
   /** Last stop of the day: the route line stops here. */
   isLast?: boolean;
+  /** Position in the day (1-based), shown on the marker when there's no photo. */
+  number?: number;
+  /** Where the trip is staying, so stop photo matching can ignore the neighborhood's name. */
+  base?: string;
   onEdit: () => void;
   onDelete: () => void;
   onSave: () => void;
@@ -158,12 +162,27 @@ function SortableActivityCard(props: ActivityCardProps) {
   );
 }
 
+function StopMarker({ name, location, base, number }: { name: string; location: string; base?: string; number?: number }) {
+  const photo = useStopPhoto(name, location, base);
+  return (
+    <div className="absolute left-0 top-0 h-10 w-10 overflow-hidden rounded-full bg-white ring-2 ring-white shadow-[0_0_0_1px_#DDE4F3]">
+      {photo ? (
+        <a href={photo.creditUrl} target="_blank" rel="noopener noreferrer" title="Photo: Wikimedia Commons" onClick={(e) => e.stopPropagation()}>
+          <img src={photo.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+        </a>
+      ) : (
+        <span className="grid h-full w-full place-items-center font-display text-[15px] font-bold" style={{ color: INK, background: '#E9EEF8' }}>
+          {number ?? ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ActivityCardInner({
   activity, isEditing, editedActivity, isDragging = false, location = '', showSlot = true, isLast = false,
-  onEdit, onDelete, onSave, onCancel, onEditedChange, dragHandleProps,
+  number, base, onEdit, onDelete, onSave, onCancel, onEditedChange, dragHandleProps,
 }: ActivityCardProps & { dragHandleProps?: any }) {
-  const kind = getActivityKind(activity.type);
-  const Icon = kind.icon;
   const parsed = parseDescription(activity.description || '');
   const { name, address } = splitTitle(activity.title);
   const facts = [
@@ -183,14 +202,8 @@ function ActivityCardInner({
       <div className="relative pl-14 pb-9">
         {/* Route line to the next stop */}
         {!isLast && <div className="absolute left-[19px] top-11 bottom-0 w-[2px] rounded-full" style={{ background: MIST }} />}
-        {/* Stop marker */}
-        <div
-          className="absolute left-0 top-0 grid h-10 w-10 place-items-center rounded-full"
-          style={{ background: `${kind.color}1A`, color: kind.color }}
-          title={activity.type}
-        >
-          <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
-        </div>
+        {/* Stop marker: a photo of the place when Wikipedia has one, otherwise its number in the day */}
+        <StopMarker name={name} location={location} base={base} number={number} />
 
         {isEditing ? (
           <div className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-[#DDE4F3]">
@@ -229,7 +242,7 @@ function ActivityCardInner({
               <ul className="mt-3 max-w-[62ch] space-y-1.5">
                 {facts.map(({ text, icon: FactIcon }, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm leading-snug" style={{ color: '#4A5A7A' }}>
-                    <FactIcon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: kind.color }} />
+                    <FactIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" />
                     <span>{text}</span>
                   </li>
                 ))}
@@ -947,6 +960,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                           location={itinerary.location}
                           showSlot={i === 0 || day.activities[i - 1].timeSlot !== activity.timeSlot}
                           isLast={i === day.activities.length - 1}
+                          number={i + 1}
+                          base={itinerary.base}
                           onEdit={() => handleEditActivity(dayIndex, activity.id)}
                           onDelete={() => handleDeleteActivity(dayIndex, activity.id)}
                           onSave={handleSaveActivity}

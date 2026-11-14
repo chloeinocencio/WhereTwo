@@ -30,8 +30,7 @@ struct TripLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
-                            Image(systemName: context.state.currentSymbol)
-                                .foregroundStyle(Theme.sky)
+                            StopNumber(number: context.state.currentNumber, size: 24)
                             VStack(alignment: .leading, spacing: 1) {
                                 if !context.state.currentSlot.isEmpty {
                                     Text(context.state.currentSlot.uppercased())
@@ -55,8 +54,7 @@ struct TripLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: context.state.currentSymbol)
-                    .foregroundStyle(Theme.sky)
+                StopNumber(number: context.state.currentNumber, size: 20)
             } compactTrailing: {
                 Text(context.state.currentTitle)
                     .font(.caption2)
@@ -89,10 +87,7 @@ private struct LockScreenView: View {
             }
 
             HStack(spacing: 12) {
-                Image(systemName: context.state.currentSymbol)
-                    .font(.title3)
-                    .foregroundStyle(Theme.sky)
-                    .frame(width: 30)
+                StopNumber(number: context.state.currentNumber, size: 30)
                 VStack(alignment: .leading, spacing: 2) {
                     if !context.state.currentSlot.isEmpty {
                         Text(context.state.currentSlot)
@@ -118,5 +113,26 @@ private struct LockScreenView: View {
                 .tint(Theme.sky)
         }
         .padding(16)
+    }
+}
+
+/// The current stop's position in the day, or a checkmark once the day is done.
+private struct StopNumber: View {
+    let number: Int?
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Theme.sky.opacity(0.25))
+            if let number {
+                Text("\(number)")
+                    .font(.system(size: size * 0.5, weight: .bold, design: .rounded))
+            } else {
+                Image(systemName: "checkmark")
+                    .font(.system(size: size * 0.45, weight: .bold))
+            }
+        }
+        .foregroundStyle(Theme.sky)
+        .frame(width: size, height: size)
     }
 }

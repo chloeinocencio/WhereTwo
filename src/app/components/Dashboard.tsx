@@ -19,7 +19,7 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 import {
-  INK, SLATE, MIST, PAPER, TODAY, destinationColors, splitPlace, tripStatus, sortTrips,
+  INK, SLATE, MIST, PAPER, TODAY, splitPlace, tripStatus, sortTrips,
   type TripStatus,
 } from '../../lib/tripVisuals';
 import { usePlacePhoto } from '../../lib/placePhotos';
@@ -170,25 +170,21 @@ function shortName(title: string) {
 
 /**
  * The destination's photo (from Wikipedia) with a dark wash so white text reads on it.
- * Falls back to the destination's color pair while loading or when there's no good photo.
+ * Shows the default travel photo while loading or when the destination has no good photo.
  */
 function PlacePhotoPanel({ location, muted, className, children }: {
   location: string; muted?: boolean; className?: string; children: React.ReactNode;
 }) {
   const photo = usePlacePhoto(location);
-  const [deep, light] = muted ? ['#5B6476', '#A9B1C2'] : destinationColors(location);
   return (
-    <div className={`relative overflow-hidden text-white ${className || ''}`} style={{ background: `linear-gradient(140deg, ${deep} 0%, ${light} 100%)` }}>
-      {photo && (
-        <img
-          src={photo.url}
-          alt=""
-          loading="lazy"
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${muted ? 'grayscale' : ''}`}
-          onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
-          ref={(el) => { if (el && !el.complete) el.classList.add('opacity-0'); }}
-        />
-      )}
+    <div className={`relative overflow-hidden text-white ${className || ''}`} style={{ background: INK }}>
+      <img
+        key={photo?.url || 'default'}
+        src={photo?.url || headerBg}
+        alt=""
+        loading="lazy"
+        className={`absolute inset-0 h-full w-full object-cover ${muted ? 'grayscale' : ''}`}
+      />
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
       <div className="relative h-full">{children}</div>
       {photo && (

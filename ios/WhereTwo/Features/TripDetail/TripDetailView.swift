@@ -208,7 +208,9 @@ struct TripDetailView: View {
                 ForEach(Array(plan.activities.enumerated()), id: \.offset) { index, item in
                     PlanItemRow(
                         item: item,
-                        place: trip.place,
+                        place: trip.location,
+                        neighborhood: trip.base,
+                        number: index + 1,
                         isDone: store.isCompleted(trip: trip.id, day: selectedDay, index: index),
                         showSlot: index == 0 || plan.activities[index - 1].timeSlot != item.timeSlot,
                         isLast: index == plan.activities.count - 1
@@ -410,7 +412,7 @@ private struct TripHeader: View {
         .padding(.bottom, 24)
         .background {
             // The destination's own photo, or the default travel photo until it's found.
-            PlacePhotoBackground(location: trip.location, fallbackImage: "AuthBackground")
+            PlacePhotoBackground(location: trip.location)
                 .ignoresSafeArea(edges: .top)
         }
     }

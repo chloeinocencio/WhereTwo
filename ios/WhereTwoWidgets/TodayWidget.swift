@@ -152,8 +152,9 @@ struct TodayWidgetView: View {
                 } else {
                     ForEach(Array(left.prefix(3).enumerated()), id: \.offset) { position, pair in
                         HStack(spacing: 8) {
-                            Image(systemName: pair.1.symbolName)
-                                .font(.caption)
+                            Text("\(pair.0 + 1)")
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
                                 .frame(width: 16)
                             Text(pair.1.shortTitle)
                                 .font(position == 0 ? .subheadline.bold() : .subheadline)

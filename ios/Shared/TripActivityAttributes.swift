@@ -7,7 +7,8 @@ struct TripActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var currentTitle: String
         var currentSlot: String
-        var currentSymbol: String
+        /// The current stop's position in the day (1-based); nil when the day is done or empty.
+        var currentNumber: Int?
         var nextTitle: String?
         var completed: Int
         var total: Int
@@ -35,7 +36,7 @@ extension TripActivityAttributes.ContentState {
             self.init(
                 currentTitle: current.shortTitle,
                 currentSlot: current.timeSlot,
-                currentSymbol: current.symbolName,
+                currentNumber: first + 1,
                 nextTitle: remaining.dropFirst().first.map { activities[$0].shortTitle },
                 completed: completed,
                 total: activities.count
@@ -44,7 +45,7 @@ extension TripActivityAttributes.ContentState {
             self.init(
                 currentTitle: activities.isEmpty ? "Free day" : "All done for today",
                 currentSlot: "",
-                currentSymbol: activities.isEmpty ? "sun.max" : "checkmark.seal.fill",
+                currentNumber: nil,
                 nextTitle: nil,
                 completed: completed,
                 total: activities.count

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
 /**
- * A photo of a trip's destination, taken from the lead image of its Wikipedia article.
- * Looked up in the browser (the MediaWiki API allows cross-origin reads with origin=*)
- * and cached per destination, so each place is fetched once.
+ * Photos of places, taken from the lead image of their Wikipedia article: one per trip
+ * destination and one per stop in a day's plan. Looked up in the browser (the MediaWiki
+ * API allows cross-origin reads with origin=*) and cached, so each place is fetched once.
  */
 export interface PlacePhoto {
   url: string;
@@ -12,37 +12,46 @@ export interface PlacePhoto {
 }
 
 const API = 'https://en.wikipedia.org/w/api.php';
-const CACHE_PREFIX = 'wheretwo:place-photo:';
+const CACHE_PREFIX = 'wheretwo:photo:';
 const CACHE_DAYS = 30;
 
-// Lead images that aren't photos of the place: maps, flags, seals, diagrams.
+// Lead images that aren't photos of the place: maps, flags, seals, logos, diagrams.
 const NOT_A_PHOTO = /\.svg$|\.gif$|flag|map|locator|location|coat[_ ]of[_ ]arms|seal|logo|emblem|marker|montage|collage/i;
 
-const inFlight = new Map<string, Promise<PlacePhoto | null>>();
+// Words that say what kind of place something is rather than which place it is.
+const KIND_WORDS = new Set([
+  'the', 'and', 'of', 'de', 'la', 'le', 'el', 'del', 'temple', 'shrine', 'palace', 'museum', 'market', 'park',
+  'garden', 'gardens', 'tower', 'station', 'street', 'square', 'restaurant', 'cafe', 'bar', 'ramen', 'sushi',
+  'beach', 'church', 'cathedral', 'castle', 'bridge', 'hotel', 'district', 'tour', 'visit', 'walk', 'center', 'centre',
+]);
 
 interface WikiPage {
   title: string;
-  missing?: string;
+  missing?: boolean;
   pageimage?: string;
   thumbnail?: { source: string; width: number; height: number };
-  pageprops?: Record<string, string>;
+  pageprops?: { disambiguation?: string };
   index?: number;
 }
 
-function usable(page: WikiPage | undefined): PlacePhoto | null {
-  if (!page || 'missing' in page || page.pageprops?.disambiguation !== undefined) return null;
+function words(text: string) {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+}
+
+function toPhoto(page: WikiPage | undefined, landscapeOnly: boolean): PlacePhoto | null {
+  if (!page || page.missing || page.pageprops?.disambiguation !== undefined) return null;
   if (!page.thumbnail || !page.pageimage || NOT_A_PHOTO.test(page.pageimage)) return null;
-  if (page.thumbnail.width < page.thumbnail.height) return null; // portrait shots crop badly in wide headers
+  if (landscapeOnly && page.thumbnail.width < page.thumbnail.height) return null;
   return {
     url: page.thumbnail.source,
     creditUrl: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.pageimage)}`,
   };
 }
 
-async function query(params: Record<string, string>): Promise<WikiPage[]> {
+async function query(params: Record<string, string>, size: number): Promise<WikiPage[]> {
   const search = new URLSearchParams({
     action: 'query', format: 'json', formatversion: '2', origin: '*', redirects: '1',
-    prop: 'pageimages|pageprops', piprop: 'thumbnail|name', pithumbsize: '1280', ...params,
+    prop: 'pageimages|pageprops', piprop: 'thumbnail|name', pithumbsize: String(size), ...params,
   });
   const response = await fetch(`${API}?${search}`);
   if (!response.ok) return [];
@@ -51,27 +60,50 @@ async function query(params: Record<string, string>): Promise<WikiPage[]> {
   return [...pages].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 }
 
-async function lookUp(location: string): Promise<PlacePhoto | null> {
+/** A trip's destination: "Portland, Oregon" first (finds the right Portland), then the city alone. */
+async function lookUpDestination(location: string): Promise<PlacePhoto | null> {
   const parts = location.split(',').map((p) => p.trim()).filter(Boolean);
   const city = parts[0];
   if (!city) return null;
-
-  // "Portland, Oregon" finds the right Portland; "Tokyo, Japan" redirects to Tokyo.
   const titles = parts.length > 1 ? [`${city}, ${parts[1]}`, city] : [city];
   for (const title of titles) {
-    const [page] = await query({ titles: title });
-    const photo = usable(page);
+    const photo = toPhoto((await query({ titles: title }, 1280))[0], true);
     if (photo) return photo;
   }
-
-  // The article's lead image is a map or flag (Bali is a map marker): try related articles.
-  const results = await query({ generator: 'search', gsrsearch: `${city} ${parts.slice(1).join(' ')}`.trim(), gsrlimit: '6' });
-  for (const page of results) {
-    const photo = usable(page);
+  // The lead image is a map or flag (Bali's is a map marker): try related articles.
+  for (const page of await query({ generator: 'search', gsrsearch: parts.join(' '), gsrlimit: '6' }, 1280)) {
+    const photo = toPhoto(page, true);
     if (photo) return photo;
   }
   return null;
 }
+
+/**
+ * One stop in a day's plan, e.g. "Senso-ji Temple" in Tokyo. An exact article title wins
+ * ("Trevi Fountain"); otherwise a search, accepting a result only when its title shares
+ * a distinctive word with the stop's name, so "Asakusa Naniwaya" doesn't get a painting.
+ */
+async function lookUpStop(name: string, place: string, neighborhood = ''): Promise<PlacePhoto | null> {
+  const exact = toPhoto((await query({ titles: name }, 250))[0], false);
+  if (exact) return exact;
+
+  // "Ichiran Ramen Shibuya" shouldn't match the Shibuya article: ignore the city and neighborhood.
+  const placeWords = new Set(words(`${place} ${neighborhood}`));
+  const distinctive = words(name).filter((w) => !KIND_WORDS.has(w) && !placeWords.has(w));
+  if (distinctive.length === 0) return null;
+  const city = place.split(',')[0];
+  for (const page of await query({ generator: 'search', gsrsearch: `${name} ${city}`, gsrlimit: '3' }, 250)) {
+    const titleWords = new Set(words(page.title));
+    if (!distinctive.some((w) => titleWords.has(w))) continue;
+    const photo = toPhoto(page, false);
+    if (photo) return photo;
+  }
+  return null;
+}
+
+// ─── Caching ─────────────────────────────────────────────────────────────────
+
+const inFlight = new Map<string, Promise<PlacePhoto | null>>();
 
 function readCache(key: string): PlacePhoto | null | undefined {
   try {
@@ -91,32 +123,42 @@ function writeCache(key: string, photo: PlacePhoto | null) {
   } catch { /* storage full or blocked: the photo just won't be remembered */ }
 }
 
-export function getPlacePhoto(location: string): Promise<PlacePhoto | null> {
-  const key = location.trim().toLowerCase();
+function cachedLookup(key: string, lookUp: () => Promise<PlacePhoto | null>): Promise<PlacePhoto | null> {
   const cached = readCache(key);
   if (cached !== undefined) return Promise.resolve(cached);
   if (!inFlight.has(key)) {
     inFlight.set(
       key,
-      lookUp(location)
+      lookUp()
         .then((photo) => { writeCache(key, photo); return photo; })
-        .catch(() => null) // offline or blocked: show the fallback, try again next visit
+        .catch(() => null) // offline or blocked: show the fallback now, try again next visit
         .finally(() => inFlight.delete(key)),
     );
   }
   return inFlight.get(key)!;
 }
 
-/** `undefined` while loading, `null` when there's no usable photo. */
-export function usePlacePhoto(location: string | undefined) {
-  const [photo, setPhoto] = useState<PlacePhoto | null | undefined>(() =>
-    location ? readCache(location.trim().toLowerCase()) : null,
-  );
+function usePhoto(key: string | null, lookUp: () => Promise<PlacePhoto | null>) {
+  const [photo, setPhoto] = useState<PlacePhoto | null | undefined>(() => (key ? readCache(key) : null));
   useEffect(() => {
-    if (!location) { setPhoto(null); return; }
+    if (!key) { setPhoto(null); return; }
     let active = true;
-    getPlacePhoto(location).then((result) => { if (active) setPhoto(result); });
+    setPhoto(readCache(key));
+    cachedLookup(key, lookUp).then((result) => { if (active) setPhoto(result); });
     return () => { active = false; };
-  }, [location]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
   return photo;
+}
+
+/** The trip destination's photo. `undefined` while loading, `null` when there's no usable photo. */
+export function usePlacePhoto(location: string | undefined) {
+  const key = location?.trim() ? `place:${location.trim().toLowerCase()}` : null;
+  return usePhoto(key, () => lookUpDestination(location!));
+}
+
+/** A stop's photo, looked up by its name within the trip's destination. */
+export function useStopPhoto(name: string | undefined, place: string, neighborhood?: string) {
+  const key = name?.trim() ? `stop:${place.trim().toLowerCase()}:${name.trim().toLowerCase()}` : null;
+  return usePhoto(key, () => lookUpStop(name!, place, neighborhood));
 }

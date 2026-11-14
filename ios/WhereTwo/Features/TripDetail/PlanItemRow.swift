@@ -1,11 +1,15 @@
 import SwiftUI
 
-/// One stop on the day's route, matching the web trip page: a tinted marker on a
-/// vertical route line, the time of day when it changes, then the place and details.
-/// Tapping the marker checks the stop off.
+/// One stop on the day's route, matching the web trip page: a marker (a photo of the place,
+/// or its number in the day) on a vertical route line, the time of day when it changes, then
+/// the place and details. Tapping the marker checks the stop off.
 struct PlanItemRow: View {
     let item: PlanItem
     let place: String
+    /// Where the trip is staying, so photo matching can ignore the neighborhood's name.
+    let neighborhood: String
+    /// Position in the day (1-based).
+    let number: Int
     let isDone: Bool
     /// Show the time-of-day label (only on the first stop of each slot).
     let showSlot: Bool
@@ -91,16 +95,8 @@ struct PlanItemRow: View {
 
     /// The stop's marker doubles as its check-off button.
     private var marker: some View {
-        let tint = item.kind.tint
-        return Button(action: onToggle) {
-            ZStack {
-                Circle().fill(isDone ? tint : tint.opacity(0.12))
-                Image(systemName: isDone ? "checkmark" : item.symbolName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(isDone ? .white : tint)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .frame(width: 40, height: 40)
+        Button(action: onToggle) {
+            StopMarker(name: item.shortTitle, location: place, neighborhood: neighborhood, number: number, isDone: isDone)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.success, trigger: isDone) { _, new in new }
