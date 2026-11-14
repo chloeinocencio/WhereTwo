@@ -21,7 +21,7 @@ import {
   Info, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
   ExternalLink, Map as MapIcon,
 } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
@@ -570,7 +570,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                   <div className="flex items-center gap-1.5 text-white/80 text-sm">
                     <Calendar className="w-3.5 h-3.5" />
                     {itinerary.startDate && itinerary.endDate ? (
-                      <span>{format(new Date(itinerary.startDate), 'MMM d')} – {format(new Date(itinerary.endDate), 'MMM d, yyyy')} · {itinerary.days} days</span>
+                      <span>{format(parseISO(itinerary.startDate), 'MMM d')} – {format(parseISO(itinerary.endDate), 'MMM d, yyyy')} · {itinerary.days} days</span>
                     ) : <span>{itinerary.days} days</span>}
                   </div>
                   {itinerary.base && (
@@ -882,7 +882,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                     </div>
                     {(() => {
                       const dayDate = itinerary.startDate
-                        ? format(addDays(new Date(itinerary.startDate), dayIndex), 'yyyy-MM-dd')
+                        ? format(addDays(parseISO(itinerary.startDate), dayIndex), 'yyyy-MM-dd')
                         : null;
                       const w = dayDate ? weather[dayDate] : undefined;
                       return w ? (

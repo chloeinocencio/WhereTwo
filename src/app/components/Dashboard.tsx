@@ -16,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 
@@ -633,7 +633,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           <CalendarIcon className="w-3.5 h-3.5 text-primary" />
                           {itinerary.startDate && itinerary.endDate ? (
                             <span className="font-medium text-xs">
-                              {format(new Date(itinerary.startDate), 'MMM d')} – {format(new Date(itinerary.endDate), 'MMM d')}
+                              {format(parseISO(itinerary.startDate), 'MMM d')} – {format(parseISO(itinerary.endDate), 'MMM d')}
                               <span className="text-muted-foreground ml-1">· {itinerary.days}d</span>
                             </span>
                           ) : (
