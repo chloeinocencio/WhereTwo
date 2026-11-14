@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
-import { supabase } from '../../lib/supabase';
+import { supabase, API_BASE, authHeaders } from '../../lib/supabase';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import {
-  MapPin, Calendar as CalendarIcon, Users, Plus, LogOut,
-  Trash2, Settings, UserCircle, Pencil, Save, X, Plane,
+  MapPin, Calendar as CalendarIcon, Plus, LogOut, ChevronRight,
+  Trash2, Settings, UserCircle, Pencil, Save, X,
 } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -17,9 +15,13 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { format, differenceInDays } from 'date-fns';
-import logo from '../../assets/daily.png';
+import { format, differenceInDays, parseISO } from 'date-fns';
+import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
+import {
+  INK, SLATE, MIST, PAPER, TODAY, getActivityKind, destinationColors, splitPlace, tripStatus, sortTrips,
+  type TripStatus,
+} from '../../lib/tripVisuals';
 
 // ─── Animation variants ───────────────────────────────────────────────────────
 const fadeUp: any = {
@@ -100,6 +102,223 @@ const NEIGHBORHOODS: Record<string, string[]> = {
   'Berlin': ['Mitte', 'Kreuzberg', 'Friedrichshain', 'Prenzlauer Berg', 'Charlottenburg'],
 };
 
+// Keys match the server's travelStyle prompt options (generateOptimalPlan in the edge function).
+const BUDGET_OPTIONS = [
+  { id: 'budget', label: 'Budget', hint: 'Under $100/day' },
+  { id: 'balanced', label: 'Mid-range', hint: '$100–300/day' },
+  { id: 'luxury', label: 'Luxury', hint: '$300+/day' },
+] as const;
+type Budget = typeof BUDGET_OPTIONS[number]['id'];
+
+// ─── Trip list pieces ─────────────────────────────────────────────────────────
+
+function statusText(status: TripStatus) {
+  switch (status.kind) {
+    case 'underway': return `Day ${status.day} of ${status.days}`;
+    case 'upcoming': return status.daysAway === 1 ? 'Tomorrow' : `In ${status.daysAway} days`;
+    case 'past': return 'Past trip';
+    default: return 'Dates not set';
+  }
+}
+
+function tripDates(trip: any) {
+  if (!trip.startDate || !trip.endDate) return `${trip.days} day${trip.days === 1 ? '' : 's'}`;
+  return `${format(parseISO(trip.startDate), 'MMM d')} – ${format(parseISO(trip.endDate), 'MMM d')}`;
+}
+
+function travelers(trip: any): string[] {
+  return [trip.ownerUsername, ...(trip.collaborators || []).map((c: any) => c.username)].filter(Boolean);
+}
+
+function Avatars({ names, ring, fill = '#fff' }: { names: string[]; ring: string; fill?: string }) {
+  return (
+    <div className="flex -space-x-2">
+      {names.slice(0, 4).map((name) => (
+        <span
+          key={name}
+          title={`@${name}`}
+          className="grid h-7 w-7 place-items-center rounded-full text-xs font-semibold ring-2"
+          style={{ color: INK, background: fill, ['--tw-ring-color' as any]: ring }}
+        >
+          {name[0]?.toUpperCase()}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** A row of the trip's stops as colored markers, so each card hints at what the plan holds. */
+function PlanPreview({ trip, max = 12 }: { trip: any; max?: number }) {
+  const stops = (trip.plan || []).flatMap((d: any) => d.activities || []);
+  if (stops.length === 0) {
+    return <p className="text-sm" style={{ color: SLATE }}>No plan yet. Open the trip to make one.</p>;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" aria-label={`${stops.length} stops planned`}>
+      {stops.slice(0, max).map((stop: any, i: number) => {
+        const kind = getActivityKind(stop.type);
+        const Icon = kind.icon;
+        return (
+          <span
+            key={stop.id || i}
+            title={stop.title}
+            className="grid h-7 w-7 place-items-center rounded-full"
+            style={{ background: `${kind.color}1F`, color: kind.color }}
+          >
+            <Icon className="h-3.5 w-3.5" strokeWidth={2.3} />
+          </span>
+        );
+      })}
+      {stops.length > max && (
+        <span className="ml-1 text-sm font-medium" style={{ color: SLATE }}>+{stops.length - max}</span>
+      )}
+    </div>
+  );
+}
+
+function StatusChip({ status, onDark }: { status: TripStatus; onDark?: boolean }) {
+  const underway = status.kind === 'underway';
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+      style={underway
+        ? { background: TODAY, color: '#3A2300' }
+        : onDark ? { background: 'rgba(255,255,255,0.18)', color: '#fff' } : { background: '#EEF2FA', color: INK }}
+    >
+      {underway && <span className="h-1.5 w-1.5 rounded-full bg-[#3A2300]" />}
+      {statusText(status)}
+    </span>
+  );
+}
+
+/** The trip that's happening now, or the next one coming up, shown large at the top. */
+function FeaturedTrip({ trip, onOpen }: { trip: any; onOpen: () => void }) {
+  const [deep, light] = destinationColors(trip.location);
+  const { city, region } = splitPlace(trip.location);
+  const status = tripStatus(trip);
+  const todayStops = status.kind === 'underway' ? (trip.plan?.[status.day - 1]?.activities || []) : [];
+
+  return (
+    <button
+      onClick={onOpen}
+      className="group grid w-full overflow-hidden rounded-[28px] text-left shadow-[0_18px_40px_-24px_rgba(14,31,77,0.55)] ring-1 ring-black/5 md:grid-cols-[1.15fr_1fr] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+    >
+      {/* Destination panel */}
+      <div
+        className="relative flex min-h-[220px] flex-col justify-between p-6 sm:p-8 text-white"
+        style={{ background: `linear-gradient(140deg, ${deep} 0%, ${light} 100%)` }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <StatusChip status={status} onDark />
+          <Avatars names={travelers(trip)} ring={deep} />
+        </div>
+        <div>
+          {status.kind === 'upcoming' && (
+            <p className="font-display text-[64px] sm:text-[84px] font-extrabold leading-[0.9] tracking-[-0.04em] text-white/95">
+              {status.daysAway}
+              <span className="ml-2 align-top text-lg font-semibold tracking-normal text-white/80">
+                day{status.daysAway === 1 ? '' : 's'} to go
+              </span>
+            </p>
+          )}
+          <h3 className="font-display mt-2 text-[40px] sm:text-[52px] font-bold leading-[0.95] tracking-[-0.03em] text-balance">
+            {city}
+          </h3>
+          {region && <p className="mt-1.5 text-[15px] text-white/80">{region}</p>}
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="flex flex-col gap-5 bg-white p-6 sm:p-8">
+        <div>
+          <p className="font-display text-xl font-semibold leading-snug" style={{ color: INK }}>{trip.title}</p>
+          <p className="mt-1 text-[15px]" style={{ color: SLATE }}>
+            {tripDates(trip)}{trip.base ? `, staying in ${trip.base}` : ''}
+          </p>
+        </div>
+
+        {todayStops.length > 0 ? (
+          <div>
+            <p className="mb-2.5 text-sm font-semibold" style={{ color: INK }}>Today</p>
+            <ul className="space-y-2">
+              {todayStops.slice(0, 3).map((stop: any, i: number) => {
+                const kind = getActivityKind(stop.type);
+                const Icon = kind.icon;
+                return (
+                  <li key={stop.id || i} className="flex items-center gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${kind.color}1F`, color: kind.color }}>
+                      <Icon className="h-4 w-4" strokeWidth={2.3} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-medium" style={{ color: INK }}>
+                        {stop.title.replace(/\s*\([^)]*\)\s*$/, '')}
+                      </span>
+                      <span className="block text-xs" style={{ color: SLATE }}>{stop.timeSlot}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : (
+          <PlanPreview trip={trip} />
+        )}
+
+        <span className="mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:underline">
+          {status.kind === 'underway' ? "Open today's plan" : 'Open trip'}
+          <ChevronRight className="h-4 w-4" />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function TripCard({ trip, canDelete, onOpen, onDelete }: { trip: any; canDelete: boolean; onOpen: () => void; onDelete: (e: React.MouseEvent) => void }) {
+  const status = tripStatus(trip);
+  const past = status.kind === 'past';
+  const [deep, light] = past ? ['#5B6476', '#A9B1C2'] : destinationColors(trip.location);
+  const { city, region } = splitPlace(trip.location);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#DDE4F3] transition-shadow hover:shadow-[0_14px_30px_-20px_rgba(14,31,77,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+    >
+      <div className="relative h-32 p-5 text-white" style={{ background: `linear-gradient(140deg, ${deep} 0%, ${light} 100%)` }}>
+        <div className="flex items-start justify-between gap-2">
+          <StatusChip status={status} onDark />
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              className="rounded-full p-1.5 text-white/70 opacity-0 transition-opacity hover:bg-white/15 hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+              aria-label={`Delete ${trip.title}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div className="absolute bottom-4 left-5 right-5">
+          <h3 className="font-display truncate text-[30px] font-bold leading-none tracking-[-0.025em]">{city}</h3>
+          {region && <p className="mt-1 truncate text-sm text-white/80">{region}</p>}
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate font-semibold" style={{ color: INK }}>{trip.title}</p>
+            <p className="mt-0.5 text-sm" style={{ color: SLATE }}>{tripDates(trip)}</p>
+          </div>
+          <Avatars names={travelers(trip)} ring="#fff" fill="#E6ECF8" />
+        </div>
+        <PlanPreview trip={trip} max={7} />
+      </div>
+    </div>
+  );
+}
+
 interface DashboardProps {
   session: any;
   onLogout: () => void;
@@ -126,6 +345,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [baseSuggestions, setBaseSuggestions] = useState<string[]>([]);
   const [showBaseSuggestions, setShowBaseSuggestions] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [budget, setBudget] = useState<Budget>('balanced');
   const locationInputRef = useRef<HTMLInputElement>(null);
   const baseInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,8 +368,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       }
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        `${API_BASE}/itineraries`,
+        { headers: authHeaders(token) }
       );
 
       const data = await response.json();
@@ -160,7 +380,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         setItineraries(sorted);
       } else {
         if (response.status === 401) {
-          console.error('fetchItineraries: unauthorized (401). Token:', token, 'response:', data);
+          console.error('fetchItineraries: unauthorized (401):', data);
         } else {
           console.error('fetchItineraries failed:', data);
         }
@@ -249,27 +469,28 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       const token = latestSession?.access_token || session?.access_token;
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries`,
+        `${API_BASE}/itineraries`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ location: newItinerary.location, base: newItinerary.base, title, area: '', days: days.toString(), startDate, endDate, interests: [], travelStyle: 'balanced', pace: 'moderate' }),
+          headers: authHeaders(token),
+          body: JSON.stringify({ location: newItinerary.location, base: newItinerary.base, title, area: '', days: days.toString(), startDate, endDate, interests: [], travelStyle: budget, pace: 'moderate' }),
         }
       );
       const data = await response.json();
       if (response.ok) {
         await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${data.itinerary.id}/generate`,
-          { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
+          `${API_BASE}/itineraries/${data.itinerary.id}/generate`,
+          { method: 'POST', headers: authHeaders(token) }
         );
         setCreateDialogOpen(false);
         setNewItinerary({ location: '', base: '', days: '3' });
         setDateRange({ from: undefined, to: undefined });
+        setBudget('balanced');
         fetchItineraries();
       } else {
         // More explicit handling for authorization failures to help debugging
         if (response.status === 401) {
-          console.error('Itinerary creation returned 401 Unauthorized. Access token:', session?.access_token);
+          console.error('Itinerary creation returned 401 Unauthorized');
           alert('Unauthorized: your login session may have expired. Please sign out and sign in again.');
         } else {
           alert(data.error || 'Failed to create itinerary');
@@ -288,8 +509,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     if (!confirm('Delete this itinerary?')) return;
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${id}`,
-        { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+        `${API_BASE}/itineraries/${id}`,
+        { method: 'DELETE', headers: authHeaders(session.access_token) }
       );
       if (response.ok) fetchItineraries();
     } catch (error) { console.error(error); }
@@ -298,8 +519,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const handleClearAll = async () => {
     if (!confirm('Delete ALL itineraries? This cannot be undone.')) return;
     await Promise.all(itineraries.map(it =>
-      fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${it.id}`, {
-        method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` }
+      fetch(`${API_BASE}/itineraries/${it.id}`, {
+        method: 'DELETE', headers: authHeaders(session.access_token)
       })
     ));
     fetchItineraries();
@@ -310,8 +531,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     setSavingChanges(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/username`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ username: newUsername }) }
+        `${API_BASE}/account/username`,
+        { method: 'PUT', headers: authHeaders(session.access_token), body: JSON.stringify({ username: newUsername }) }
       );
       const data = await response.json();
       if (response.ok) { session.user.user_metadata.username = newUsername; setEditingUsername(false); alert('Username updated!'); }
@@ -324,8 +545,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     setSavingChanges(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/email`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ email: newEmail }) }
+        `${API_BASE}/account/email`,
+        { method: 'PUT', headers: authHeaders(session.access_token), body: JSON.stringify({ email: newEmail }) }
       );
       const data = await response.json();
       if (response.ok) { setEditingEmail(false); alert('Email update initiated! Check both inboxes.'); }
@@ -338,26 +559,38 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     if (confirmation !== 'DELETE') return;
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account`,
-        { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+        `${API_BASE}/account`,
+        { method: 'DELETE', headers: authHeaders(session.access_token) }
       );
       if (response.ok) { alert('Your account has been deleted.'); onLogout(); }
     } catch (error) { alert('Failed to delete account'); }
   };
 
+  const sorted = sortTrips(itineraries);
+  const featured = sorted.find((t) => ['underway', 'upcoming'].includes(tripStatus(t).kind));
+  const rest = sorted.filter((t) => t !== featured);
+  const current = rest.filter((t) => tripStatus(t).kind !== 'past');
+  const past = rest.filter((t) => tripStatus(t).kind === 'past');
+  const underwayCount = sorted.filter((t) => tripStatus(t).kind === 'underway').length;
+  const upcomingCount = sorted.filter((t) => tripStatus(t).kind === 'upcoming').length;
+  const summary = [
+    underwayCount ? `${underwayCount} trip${underwayCount === 1 ? '' : 's'} happening now` : '',
+    upcomingCount ? `${upcomingCount} coming up` : '',
+  ].filter(Boolean).join(' and ');
+
   return (
-    <div className="size-full flex flex-col overflow-hidden">
+    <div className="size-full overflow-auto" style={{ background: PAPER }}>
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="relative shrink-0 overflow-hidden">
-        <img src={headerBg} alt="" className="absolute inset-0 w-full h-full object-cover object-[center_42%] scale-105 blur-[2px]" />
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="relative z-10 max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <img src={logo} alt="WhereTwo" className="h-14 w-auto" />
-          <div className="flex items-center gap-3">
+      <header className="relative overflow-hidden text-white" style={{ background: INK }}>
+        <img src={headerBg} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0E1F4D]/90 via-[#0E1F4D]/50 to-[#0E1F4D]/20" />
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 pt-5 pb-9">
+          <div className="flex items-center justify-between">
+            <img src={logo} alt="WhereTwo" className="h-12 w-auto" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="secondary" className="bg-white/15 hover:bg-white/25 text-white border border-white/25 backdrop-blur-sm transition-all duration-200">
+                <Button className="rounded-full bg-white/15 text-white ring-1 ring-white/30 hover:bg-white/25">
                   <UserCircle className="w-4 h-4 mr-2" />
                   @{userName}
                 </Button>
@@ -373,17 +606,25 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onLogout}>
-                  <LogOut className="w-4 h-4 mr-2" />Sign Out
+                  <LogOut className="w-4 h-4 mr-2" />Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          <h1 className="font-display mt-10 max-w-2xl text-[36px] sm:text-[52px] font-bold leading-[1] tracking-[-0.03em] text-balance">
+            Where to next, {userName}?
+          </h1>
+          {!loading && (
+            <p className="mt-3 text-[17px] text-white/80">
+              {summary || (itineraries.length ? 'All your trips are behind you. Time to plan another.' : 'Plan your first trip together.')}
+            </p>
+          )}
         </div>
       </header>
 
       {/* ── Main ────────────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto bg-background">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+      <main>
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-8">
 
           {/* Top bar */}
           <motion.div
@@ -393,8 +634,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div>
-              <h2 className="text-2xl font-bold text-foreground tracking-tight">Your Itineraries</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">Plan your next adventure</p>
+              <h2 className="font-display text-[26px] font-bold tracking-[-0.02em]" style={{ color: INK }}>Your trips</h2>
             </div>
             <div className="flex gap-2 shrink-0">
               {itineraries.length > 0 && (
@@ -404,7 +644,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                   className="text-destructive hover:text-destructive hover:bg-destructive/8 border-destructive/25 transition-all duration-200"
                 >
                   <Trash2 className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Clear All</span>
+                  <span className="hidden sm:inline">Delete all</span>
                 </Button>
               )}
 
@@ -412,13 +652,13 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
               <Dialog open={createDialogOpen} onOpenChange={(open) => {
                 if (!isCreating) {
                   setCreateDialogOpen(open);
-                  if (!open) { setNewItinerary({ location: '', base: '', days: '3' }); setDateRange({ from: undefined, to: undefined }); }
+                  if (!open) { setNewItinerary({ location: '', base: '', days: '3' }); setDateRange({ from: undefined, to: undefined }); setBudget('balanced'); }
                 }
               }}>
                 {itineraries.length > 0 && (
                   <DialogTrigger asChild>
                     <Button className="shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex-1 sm:flex-none">
-                      <Plus className="w-4 h-4 mr-2" />New Itinerary
+                      <Plus className="w-4 h-4 mr-2" />New trip
                     </Button>
                   </DialogTrigger>
                 )}
@@ -544,6 +784,32 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                       </Popover>
                     </div>
 
+                    {/* Budget */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">What's your daily budget?</Label>
+                      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Daily budget">
+                        {BUDGET_OPTIONS.map((option) => {
+                          const selected = budget === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              disabled={isCreating}
+                              onClick={() => setBudget(option.id)}
+                              className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
+                                selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                              }`}
+                            >
+                              <div className={`text-sm font-semibold ${selected ? 'text-primary' : 'text-foreground'}`}>{option.label}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{option.hint}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <Button type="submit" className="w-full h-11 font-semibold" disabled={isCreating}>
                       {isCreating ? (
                         <span className="flex items-center gap-2">
@@ -561,7 +827,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
             </div>
           </motion.div>
 
-          {/* ── Card grid ───────────────────────────────────────────────────── */}
+          {/* ── Trips ───────────────────────────────────────────────────────── */}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
               <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-primary border-r-transparent" />
@@ -569,98 +835,61 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
             </div>
           ) : itineraries.length === 0 ? (
             <motion.div
-              className="flex flex-col items-center justify-center py-24 px-4 text-center"
+              className="flex flex-col items-center justify-center rounded-[28px] border-2 border-dashed py-20 px-6 text-center"
+              style={{ borderColor: MIST }}
               variants={fadeUp} initial="initial" animate="animate"
             >
-              {/* decorative icon removed */}
-              <h3 className="text-xl font-bold text-foreground mb-2">No trips yet</h3>
-              <p className="text-muted-foreground mb-6 max-w-sm">Start planning your next adventure — create your first AI-powered itinerary!</p>
-              <Button onClick={() => setCreateDialogOpen(true)} className="shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-                <Plus className="w-4 h-4 mr-2" />Create Your First Trip
+              <h3 className="font-display text-2xl font-bold" style={{ color: INK }}>No trips yet</h3>
+              <p className="mt-2 mb-6 max-w-sm text-[15px]" style={{ color: SLATE }}>
+                Pick a city and your dates, and WhereTwo plans each day around where you're staying.
+              </p>
+              <Button onClick={() => setCreateDialogOpen(true)} size="lg" className="rounded-full">
+                <Plus className="w-4 h-4 mr-2" />Plan a trip
               </Button>
             </motion.div>
           ) : (
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              variants={staggerGrid} initial="initial" animate="animate"
-            >
-              {itineraries.map((itinerary) => (
-                <motion.div
-                  key={itinerary.id}
-                  variants={cardVariants}
-                  whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                  className="cursor-pointer group"
-                  onClick={() => onViewItinerary(itinerary.id)}
-                >
-                  <Card className="h-full overflow-hidden border border-border/60 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 bg-white">
-                    {/* Accent bar */}
-                    <div className="h-1 w-full bg-primary" />
-
-                    <div className="p-5">
-                      {/* Title row */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg text-foreground leading-tight truncate pr-2 group-hover:text-primary transition-colors duration-200">
-                            {itinerary.title}
-                          </h3>
-                          <div className="flex items-center gap-1.5 mt-1.5 text-sm text-muted-foreground">
-                            <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                            <span className="font-medium truncate">{itinerary.location}</span>
-                            {itinerary.area && <span className="text-muted-foreground/60">· {itinerary.area}</span>}
-                          </div>
-                          {itinerary.base && (
-                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-secondary/60 inline-block" />
-                              Staying in {itinerary.base}
-                            </p>
-                          )}
-                        </div>
-                        {itinerary.ownerId === session.user.id && (
-                          <button
-                            onClick={(e) => handleDeleteItinerary(itinerary.id, e)}
-                            className="text-muted-foreground/40 hover:text-destructive hover:bg-destructive/8 p-1.5 rounded-lg transition-all duration-200 shrink-0"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Divider */}
-                      <div className="border-t border-border/50 my-3" />
-
-                      {/* Meta */}
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1.5 text-foreground/65">
-                          <CalendarIcon className="w-3.5 h-3.5 text-primary" />
-                          {itinerary.startDate && itinerary.endDate ? (
-                            <span className="font-medium text-xs">
-                              {format(new Date(itinerary.startDate), 'MMM d')} – {format(new Date(itinerary.endDate), 'MMM d')}
-                              <span className="text-muted-foreground ml-1">· {itinerary.days}d</span>
-                            </span>
-                          ) : (
-                            <span className="font-medium text-xs">{itinerary.days} days</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-foreground/65">
-                          <Users className="w-3.5 h-3.5 text-secondary" />
-                          <span className="font-medium text-xs">{itinerary.collaborators.length + 1}</span>
-                        </div>
-                      </div>
-
-                      {/* Badge */}
-                      <div className="mt-3">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          itinerary.ownerId === session.user.id
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-secondary/10 text-secondary'
-                        }`}>
-                          {itinerary.ownerId === session.user.id ? 'Owner' : 'Collaborator'}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
+            <motion.div className="space-y-10" variants={staggerGrid} initial="initial" animate="animate">
+              {featured && (
+                <motion.div variants={cardVariants}>
+                  <FeaturedTrip trip={featured} onOpen={() => onViewItinerary(featured.id)} />
                 </motion.div>
-              ))}
+              )}
+
+              {current.length > 0 && (
+                <section>
+                  {featured && <h3 className="mb-4 font-display text-lg font-semibold" style={{ color: INK }}>More trips</h3>}
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {current.map((trip) => (
+                      <motion.div key={trip.id} variants={cardVariants}>
+                        <TripCard
+                          trip={trip}
+                          canDelete={trip.ownerId === session.user.id}
+                          onOpen={() => onViewItinerary(trip.id)}
+                          onDelete={(e) => handleDeleteItinerary(trip.id, e)}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {past.length > 0 && (
+                <section>
+                  <h3 className="mb-4 font-display text-lg font-semibold" style={{ color: INK }}>Past trips</h3>
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {past.map((trip) => (
+                      <motion.div key={trip.id} variants={cardVariants}>
+                        <TripCard
+                          trip={trip}
+                          canDelete={trip.ownerId === session.user.id}
+                          onOpen={() => onViewItinerary(trip.id)}
+                          onDelete={(e) => handleDeleteItinerary(trip.id, e)}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </section>
+              )}
             </motion.div>
           )}
         </div>

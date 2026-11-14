@@ -21,6 +21,11 @@ app.use(
   }),
 );
 
+// Owners and invited collaborators can view, edit and regenerate a trip.
+const canAccess = (itinerary: any, userId: string) =>
+  itinerary.ownerId === userId ||
+  itinerary.collaborators.some((collab: any) => collab.userId === userId);
+
 // Helper to get authenticated user
 const getAuthUser = async (authHeader: string | null) => {
   if (!authHeader) return null;
@@ -36,7 +41,6 @@ const getAuthUser = async (authHeader: string | null) => {
   return error ? null : user;
 };
 
-// Health check endpoint - UPDATED
 async function sendEmail(to: string, subject: string, html: string) {
   const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
@@ -67,7 +71,6 @@ async function sendEmail(to: string, subject: string, html: string) {
       return { success: false, error: data };
     }
 
-    console.log(`Email sent successfully to ${to}`);
     return { success: true, data };
   } catch (error) {
     console.log(`Email send exception: ${error}`);
@@ -234,10 +237,7 @@ app.get("/make-server-9b7ec865/itineraries/:id", async (c) => {
       return c.json({ error: "Itinerary not found" }, 404);
     }
 
-    const isOwner = itinerary.ownerId === user.id;
-    const isCollaborator = itinerary.collaborators.some((collab: any) => collab.userId === user.id);
-
-    if (!isOwner && !isCollaborator) {
+    if (!canAccess(itinerary, user.id)) {
       return c.json({ error: "Access denied" }, 403);
     }
 
@@ -262,10 +262,7 @@ app.put("/make-server-9b7ec865/itineraries/:id", async (c) => {
       return c.json({ error: "Itinerary not found" }, 404);
     }
 
-    const isOwner = itinerary.ownerId === user.id;
-    const isCollaborator = itinerary.collaborators.some((collab: any) => collab.userId === user.id);
-
-    if (!isOwner && !isCollaborator) {
+    if (!canAccess(itinerary, user.id)) {
       return c.json({ error: "Access denied" }, 403);
     }
 
@@ -625,6 +622,61 @@ app.post("/make-server-9b7ec865/itineraries/:id/invite", async (c) => {
   }
 });
 
+// Flight lookup (AviationStack). The key stays here as a secret: the free plan is
+// HTTP-only, which browsers block from an HTTPS page, and the key shouldn't ship to clients.
+app.get("/make-server-9b7ec865/flights/lookup", async (c) => {
+  try {
+    const user = await getAuthUser(c.req.header('Authorization'));
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const flight = (c.req.query('flight') || '').replace(/\s+/g, '').toUpperCase();
+    if (!/^[A-Z0-9]{2}\d{1,4}$/.test(flight)) {
+      return c.json({ error: "Enter a flight like DL123" }, 400);
+    }
+
+    const apiKey = Deno.env.get('AVIATIONSTACK_API_KEY');
+    if (!apiKey) {
+      return c.json({ error: "Flight lookup isn't set up yet. Enter the details manually." }, 503);
+    }
+
+    const response = await fetch(
+      `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${flight}&limit=1`
+    );
+    const data = await response.json();
+    if (data.error) {
+      console.log(`AviationStack error: ${JSON.stringify(data.error)}`);
+      return c.json({ error: "Flight lookup is unavailable right now. Enter the details manually." }, 502);
+    }
+
+    const match = data.data?.[0];
+    if (!match) {
+      return c.json({ error: "No flight found with that number. Enter the details manually." }, 404);
+    }
+
+    // AviationStack reports scheduled times in each airport's local time (despite the
+    // +00:00 suffix), so read the date and HH:MM straight from the string.
+    const dep = match.departure || {};
+    const arr = match.arrival || {};
+    return c.json({
+      flight: {
+        airline: match.airline?.name || '',
+        iata: match.airline?.iata || flight.slice(0, 2),
+        flightNumber: (match.flight?.number || flight.slice(2)).toString(),
+        from: dep.iata || '',
+        to: arr.iata || '',
+        date: (dep.scheduled || '').slice(0, 10),
+        departureTime: (dep.scheduled || '').slice(11, 16),
+        arrivalTime: (arr.scheduled || '').slice(11, 16),
+      },
+    });
+  } catch (error) {
+    console.log(`Flight lookup error: ${error}`);
+    return c.json({ error: "Flight lookup failed. Enter the details manually." }, 500);
+  }
+});
+
 app.post("/make-server-9b7ec865/itineraries/:id/generate", async (c) => {
   try {
     const user = await getAuthUser(c.req.header('Authorization'));
@@ -639,10 +691,7 @@ app.post("/make-server-9b7ec865/itineraries/:id/generate", async (c) => {
       return c.json({ error: "Itinerary not found" }, 404);
     }
 
-    const isOwner = itinerary.ownerId === user.id;
-    const isCollaborator = itinerary.collaborators.some((collab: any) => collab.userId === user.id);
-
-    if (!isOwner && !isCollaborator) {
+    if (!canAccess(itinerary, user.id)) {
       return c.json({ error: "Access denied" }, 403);
     }
 
@@ -677,14 +726,9 @@ async function generateOptimalPlan(
   travelStyle: string = 'balanced',
   pace: string = 'moderate'
 ) {
-  console.log('=== START generateOptimalPlan ===');
-  console.log(`Location: ${location}, Base: ${base}, Days: ${days}`);
-  console.log(`Interests: ${interests.join(', ')}, Style: ${travelStyle}, Pace: ${pace}`);
 
   try {
     const apiKey = Deno.env.get('GEMINI_API_KEY');
-    console.log(`API Key exists: ${!!apiKey}`);
-    console.log(`API Key length: ${apiKey?.length || 0}`);
 
     if (!apiKey) {
       console.log('❌ GEMINI_API_KEY not found, using fallback plan generation');
@@ -807,8 +851,6 @@ IMPORTANT RULES:
 
 Return the JSON array now:`;
 
-    console.log('📞 Calling Gemini API for itinerary generation...');
-    console.log(`Prompt length: ${prompt.length} characters`);
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent`, {
       method: 'POST',
@@ -829,7 +871,6 @@ Return the JSON array now:`;
       }),
     });
 
-    console.log(`Response status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -839,8 +880,6 @@ Return the JSON array now:`;
     }
 
     const data = await response.json();
-    console.log('✅ Gemini API response received successfully');
-    console.log('Response structure:', JSON.stringify(Object.keys(data)));
 
     if (!data.candidates || !data.candidates[0]) {
       console.log('❌ No candidates in response:', JSON.stringify(data));
@@ -849,13 +888,10 @@ Return the JSON array now:`;
     }
 
     let content = data.candidates[0].content.parts[0].text;
-    console.log('AI Response length:', content.length);
-    console.log('AI Response preview:', content.substring(0, 500));
 
     // Remove markdown code blocks if present
     content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '');
 
-    console.log('🔍 Looking for JSON in response...');
     const jsonMatch = content.match(/\[[\s\S]*\]/);
 
     if (!jsonMatch) {
@@ -865,8 +901,6 @@ Return the JSON array now:`;
       return generateFallbackPlan(location, area, days, interests, travelStyle, pace);
     }
 
-    console.log('✅ Found JSON array, length:', jsonMatch[0].length);
-    console.log('✅ Parsing JSON...');
 
     let aiPlan;
     try {
@@ -885,7 +919,6 @@ Return the JSON array now:`;
       console.log('JSON preview (last 500 chars):', jsonString.substring(jsonString.length - 500));
 
       aiPlan = JSON.parse(jsonString);
-      console.log(`✅ Successfully parsed JSON with ${aiPlan.length} days`);
     } catch (parseError) {
       console.log('❌ JSON parse error:', parseError);
 
@@ -929,8 +962,6 @@ Return the JSON array now:`;
 
     const totalActivities = deduplicatedPlan.reduce((sum: number, day: any) => sum + day.activities.length, 0);
     console.log(`✅ Generated ${totalActivities} unique activities across ${days} days`);
-    console.log('Sample activity from Day 1:', deduplicatedPlan[0]?.activities[0]?.title);
-    console.log('=== END generateOptimalPlan (SUCCESS) ===');
 
     return deduplicatedPlan;
 
@@ -938,7 +969,6 @@ Return the JSON array now:`;
     console.log(`❌ Gemini API generation error: ${error}`);
     console.log(`Error stack: ${error.stack}`);
     console.log('❌ USING FALLBACK PLAN - Exception caught');
-    console.log('=== END generateOptimalPlan (FALLBACK) ===');
     return generateFallbackPlan(location, area, days);
   }
 }
@@ -952,8 +982,6 @@ function generateFallbackPlan(
   pace: string = 'moderate'
 ) {
   console.log('🔴 FALLBACK PLAN ACTIVATED');
-  console.log(`Generating generic plan for ${location}, ${days} days`);
-  console.log(`Preferences: ${interests.join(', ')}, ${travelStyle}, ${pace}`);
 
   const timeSlots = ['Morning', 'Afternoon', 'Evening'];
   const activityTypes = ['Sightseeing', 'Dining', 'Outdoor Activities', 'Museums', 'Shopping', 'Relaxation', 'Local Culture'];

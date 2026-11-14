@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from '../../lib/supabase';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+import { supabase, API_BASE, publicAnonKey, authHeaders } from '../../lib/supabase';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Shuffle, MapPin } from 'lucide-react';
-import logo from '../../assets/daily.png';
+import logo from '../../assets/pin-logo.png';
 import headerBg from '../../assets/header.jpg';
 
 interface AuthViewProps {
@@ -34,8 +33,8 @@ export function AuthView({ onLogin }: AuthViewProps) {
   const generateRandomUsername = async () => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/generate-username`,
-        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        `${API_BASE}/generate-username`,
+        { headers: authHeaders(publicAnonKey) }
       );
       const data = await response.json();
       if (response.ok) setUsername(data.username);
@@ -50,10 +49,10 @@ export function AuthView({ onLogin }: AuthViewProps) {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/signup`,
+        `${API_BASE}/signup`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          headers: authHeaders(publicAnonKey),
           body: JSON.stringify({ email, password, username }),
         }
       );

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { AuthView } from './components/AuthView';
 import { Dashboard } from './components/Dashboard';
 import { ItineraryView } from './components/ItineraryView';
-import logo from '../assets/daily.png';
+import logo from '../assets/pin-logo.png';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
