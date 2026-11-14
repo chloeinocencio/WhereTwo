@@ -99,6 +99,14 @@ const NEIGHBORHOODS: Record<string, string[]> = {
   'Berlin': ['Mitte', 'Kreuzberg', 'Friedrichshain', 'Prenzlauer Berg', 'Charlottenburg'],
 };
 
+// Keys match the server's travelStyle prompt options (generateOptimalPlan in the edge function).
+const BUDGET_OPTIONS = [
+  { id: 'budget', label: 'Budget', hint: 'Under $100/day' },
+  { id: 'balanced', label: 'Mid-range', hint: '$100–300/day' },
+  { id: 'luxury', label: 'Luxury', hint: '$300+/day' },
+] as const;
+type Budget = typeof BUDGET_OPTIONS[number]['id'];
+
 interface DashboardProps {
   session: any;
   onLogout: () => void;
@@ -125,6 +133,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const [baseSuggestions, setBaseSuggestions] = useState<string[]>([]);
   const [showBaseSuggestions, setShowBaseSuggestions] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [budget, setBudget] = useState<Budget>('balanced');
   const locationInputRef = useRef<HTMLInputElement>(null);
   const baseInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -252,7 +261,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         {
           method: 'POST',
           headers: authHeaders(token),
-          body: JSON.stringify({ location: newItinerary.location, base: newItinerary.base, title, area: '', days: days.toString(), startDate, endDate, interests: [], travelStyle: 'balanced', pace: 'moderate' }),
+          body: JSON.stringify({ location: newItinerary.location, base: newItinerary.base, title, area: '', days: days.toString(), startDate, endDate, interests: [], travelStyle: budget, pace: 'moderate' }),
         }
       );
       const data = await response.json();
@@ -264,11 +273,12 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         setCreateDialogOpen(false);
         setNewItinerary({ location: '', base: '', days: '3' });
         setDateRange({ from: undefined, to: undefined });
+        setBudget('balanced');
         fetchItineraries();
       } else {
         // More explicit handling for authorization failures to help debugging
         if (response.status === 401) {
-          console.error('Itinerary creation returned 401 Unauthorized. Access token:', session?.access_token);
+          console.error('Itinerary creation returned 401 Unauthorized');
           alert('Unauthorized: your login session may have expired. Please sign out and sign in again.');
         } else {
           alert(data.error || 'Failed to create itinerary');
@@ -411,7 +421,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
               <Dialog open={createDialogOpen} onOpenChange={(open) => {
                 if (!isCreating) {
                   setCreateDialogOpen(open);
-                  if (!open) { setNewItinerary({ location: '', base: '', days: '3' }); setDateRange({ from: undefined, to: undefined }); }
+                  if (!open) { setNewItinerary({ location: '', base: '', days: '3' }); setDateRange({ from: undefined, to: undefined }); setBudget('balanced'); }
                 }
               }}>
                 {itineraries.length > 0 && (
@@ -541,6 +551,32 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
                           />
                         </PopoverContent>
                       </Popover>
+                    </div>
+
+                    {/* Budget */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">What's your daily budget?</Label>
+                      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Daily budget">
+                        {BUDGET_OPTIONS.map((option) => {
+                          const selected = budget === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              disabled={isCreating}
+                              onClick={() => setBudget(option.id)}
+                              className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
+                                selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                              }`}
+                            >
+                              <div className={`text-sm font-semibold ${selected ? 'text-primary' : 'text-foreground'}`}>{option.label}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{option.hint}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <Button type="submit" className="w-full h-11 font-semibold" disabled={isCreating}>

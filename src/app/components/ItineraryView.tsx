@@ -19,7 +19,7 @@ import {
   ArrowLeft, MapPin, Calendar, Users, UserPlus,
   Edit2, Check, X, Clock, DollarSign, Navigation,
   Info, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
-  ExternalLink, Map as MapIcon,
+  ExternalLink, Map as MapIcon, Search,
 } from 'lucide-react';
 import { format, addDays, parseISO } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
@@ -320,6 +320,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [addFlightOpen, setAddFlightOpen] = useState(false);
   const [newFlight, setNewFlight] = useState({ airline: '', iata: '', flightNumber: '', from: '', to: '', date: '', departureTime: '', arrivalTime: '', notes: '' });
   const [airlineQuery, setAirlineQuery] = useState('');
+  const [flightLookupLoading, setFlightLookupLoading] = useState(false);
+  const [flightLookupError, setFlightLookupError] = useState('');
   const [airlineSuggestions, setAirlineSuggestions] = useState<typeof AIRLINES>([]);
   const [showAirlineSuggestions, setShowAirlineSuggestions] = useState(false);
 
@@ -498,6 +500,34 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     setShowAirlineSuggestions(true);
   };
 
+  // Fills in route, date and times from the flight number (AviationStack, via the edge function).
+  const handleLookupFlight = async () => {
+    if (!newFlight.iata || !newFlight.flightNumber) return;
+    setFlightLookupLoading(true);
+    setFlightLookupError('');
+    try {
+      const response = await fetch(
+        `${API_BASE}/flights/lookup?flight=${encodeURIComponent(newFlight.iata + newFlight.flightNumber)}`,
+        { headers: authHeaders(session.access_token) }
+      );
+      const data = await response.json();
+      if (!response.ok) { setFlightLookupError(data.error || 'Flight lookup failed. Enter the details manually.'); return; }
+      const found = data.flight;
+      setNewFlight(prev => ({
+        ...prev,
+        from: found.from || prev.from,
+        to: found.to || prev.to,
+        date: found.date || prev.date,
+        departureTime: found.departureTime || prev.departureTime,
+        arrivalTime: found.arrivalTime || prev.arrivalTime,
+      }));
+    } catch {
+      setFlightLookupError('Could not reach flight lookup. Enter the details manually.');
+    } finally {
+      setFlightLookupLoading(false);
+    }
+  };
+
   const handleAddFlight = async (e: React.FormEvent) => {
     e.preventDefault();
     const existingFlights = itinerary.flights || [];
@@ -507,6 +537,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
       setAddFlightOpen(false);
       setNewFlight({ airline: '', iata: '', flightNumber: '', from: '', to: '', date: '', departureTime: '', arrivalTime: '', notes: '' });
       setAirlineQuery('');
+      setFlightLookupError('');
     }
   };
 
@@ -1105,13 +1136,27 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                 </div>
                 <Input
                   value={newFlight.flightNumber}
-                  onChange={(e) => setNewFlight({ ...newFlight, flightNumber: e.target.value.toUpperCase().replace(/[^0-9]/g, '') })}
+                  onChange={(e) => { setNewFlight({ ...newFlight, flightNumber: e.target.value.toUpperCase().replace(/[^0-9]/g, '') }); setFlightLookupError(''); }}
                   placeholder="e.g. 1234"
                   className="h-10 font-mono"
                   required
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 shrink-0 gap-1.5"
+                  onClick={handleLookupFlight}
+                  disabled={!newFlight.iata || !newFlight.flightNumber || flightLookupLoading}
+                >
+                  {flightLookupLoading
+                    ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
+                    : <Search className="w-4 h-4" />}
+                  Fill in
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Numbers only — the IATA code is prefixed automatically</p>
+              {flightLookupError
+                ? <p className="text-xs text-destructive">{flightLookupError}</p>
+                : <p className="text-xs text-muted-foreground">Numbers only — the IATA code is prefixed automatically. Tap Fill in to look up the route and times.</p>}
             </div>
 
             {/* Route */}

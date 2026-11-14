@@ -622,6 +622,61 @@ app.post("/make-server-9b7ec865/itineraries/:id/invite", async (c) => {
   }
 });
 
+// Flight lookup (AviationStack). The key stays here as a secret: the free plan is
+// HTTP-only, which browsers block from an HTTPS page, and the key shouldn't ship to clients.
+app.get("/make-server-9b7ec865/flights/lookup", async (c) => {
+  try {
+    const user = await getAuthUser(c.req.header('Authorization'));
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const flight = (c.req.query('flight') || '').replace(/\s+/g, '').toUpperCase();
+    if (!/^[A-Z0-9]{2}\d{1,4}$/.test(flight)) {
+      return c.json({ error: "Enter a flight like DL123" }, 400);
+    }
+
+    const apiKey = Deno.env.get('AVIATIONSTACK_API_KEY');
+    if (!apiKey) {
+      return c.json({ error: "Flight lookup isn't set up yet. Enter the details manually." }, 503);
+    }
+
+    const response = await fetch(
+      `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${flight}&limit=1`
+    );
+    const data = await response.json();
+    if (data.error) {
+      console.log(`AviationStack error: ${JSON.stringify(data.error)}`);
+      return c.json({ error: "Flight lookup is unavailable right now. Enter the details manually." }, 502);
+    }
+
+    const match = data.data?.[0];
+    if (!match) {
+      return c.json({ error: "No flight found with that number. Enter the details manually." }, 404);
+    }
+
+    // AviationStack reports scheduled times in each airport's local time (despite the
+    // +00:00 suffix), so read the date and HH:MM straight from the string.
+    const dep = match.departure || {};
+    const arr = match.arrival || {};
+    return c.json({
+      flight: {
+        airline: match.airline?.name || '',
+        iata: match.airline?.iata || flight.slice(0, 2),
+        flightNumber: (match.flight?.number || flight.slice(2)).toString(),
+        from: dep.iata || '',
+        to: arr.iata || '',
+        date: (dep.scheduled || '').slice(0, 10),
+        departureTime: (dep.scheduled || '').slice(11, 16),
+        arrivalTime: (arr.scheduled || '').slice(11, 16),
+      },
+    });
+  } catch (error) {
+    console.log(`Flight lookup error: ${error}`);
+    return c.json({ error: "Flight lookup failed. Enter the details manually." }, 500);
+  }
+});
+
 app.post("/make-server-9b7ec865/itineraries/:id/generate", async (c) => {
   try {
     const user = await getAuthUser(c.req.header('Authorization'));

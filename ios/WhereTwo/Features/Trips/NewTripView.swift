@@ -42,7 +42,7 @@ struct NewTripView: View {
         Interest("photography", "Photo spots", "camera"),
         Interest("local", "Local culture", "person.3"),
     ]
-    private static let styles = [Choice("budget", "Budget"), Choice("balanced", "Balanced"), Choice("luxury", "Luxury"), Choice("family", "Family")]
+    private static let styles = [Choice("budget", "Budget"), Choice("balanced", "Mid-range"), Choice("luxury", "Luxury"), Choice("family", "Family")]
     private static let paces = [Choice("relaxed", "Relaxed"), Choice("moderate", "Moderate"), Choice("packed", "Packed")]
 
     private var dayCount: Int {
@@ -87,7 +87,7 @@ struct NewTripView: View {
                     .padding(.vertical, 4)
                 }
 
-                Section("Style") {
+                Section("Budget & pace") {
                     Picker("Budget", selection: $style) {
                         ForEach(Self.styles) { Text($0.label).tag($0.key) }
                     }
