@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Shuffle, MapPin } from 'lucide-react';
-import logo from '../../assets/daily.png';
+import logo from '../../assets/pin-logo.png';
 import headerBg from '../../assets/header.jpg';
 
 interface AuthViewProps {

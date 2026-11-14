@@ -17,7 +17,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { format, differenceInDays } from 'date-fns';
-import logo from '../../assets/daily.png';
+import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 
 // ─── Animation variants ───────────────────────────────────────────────────────

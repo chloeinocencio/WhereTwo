@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
-import logo from '../../assets/daily.png';
+import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
