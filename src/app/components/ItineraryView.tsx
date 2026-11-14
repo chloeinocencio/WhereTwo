@@ -18,11 +18,11 @@ import { Badge } from './ui/badge';
 import {
   ArrowLeft, MapPin, Calendar, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation,
   Info, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
-  ExternalLink, Map as MapIcon, Search, BedDouble, Landmark, UtensilsCrossed, ShoppingBag,
-  Palette, Trees, Mountain, Ticket, Coffee, type LucideIcon,
+  ExternalLink, Map as MapIcon, Search, BedDouble,
 } from 'lucide-react';
 import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
+import { INK, MIST, TODAY, getActivityKind } from '../../lib/tripVisuals';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 
@@ -82,32 +82,6 @@ const AIRLINES = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Trip page palette: ink text on a cool paper background, brand gradient in the header.
-const INK = '#0E1F4D';
-const MIST = '#DDE4F3';
-const TODAY = '#F5A524';
-
-// Icon and tint for each activity type, used for the stop markers on the day's route.
-const ACTIVITY_KINDS: Record<string, { icon: LucideIcon; color: string }> = {
-  sightseeing:   { icon: Landmark,        color: '#3D63DD' },
-  food:          { icon: UtensilsCrossed, color: '#D9672E' },
-  dining:        { icon: UtensilsCrossed, color: '#D9672E' },
-  shopping:      { icon: ShoppingBag,     color: '#8E54D6' },
-  culture:       { icon: Palette,         color: '#C2477E' },
-  museums:       { icon: Palette,         color: '#C2477E' },
-  nature:        { icon: Trees,           color: '#24936A' },
-  adventure:     { icon: Mountain,        color: '#24936A' },
-  entertainment: { icon: Ticket,          color: '#6A4CC9' },
-  nightlife:     { icon: Ticket,          color: '#6A4CC9' },
-  relaxation:    { icon: Coffee,          color: '#23929C' },
-};
-const DEFAULT_KIND = { icon: MapPin, color: '#5B6B8C' };
-
-function getActivityKind(type: string) {
-  const key = (type || '').toLowerCase();
-  return ACTIVITY_KINDS[key] ?? Object.entries(ACTIVITY_KINDS).find(([k]) => key.includes(k))?.[1] ?? DEFAULT_KIND;
-}
-
 /** Gemini writes "Place Name (street address)"; show the name as the title and the address under it. */
 function splitTitle(title: string) {
   const match = /^(.*?)\s*\(([^)]*\d[^)]*)\)\s*$/.exec(title || '');

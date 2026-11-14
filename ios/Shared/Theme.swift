@@ -48,3 +48,35 @@ extension PlanItem.Kind {
         }
     }
 }
+
+extension Theme {
+    /// Each destination gets its own color pair, picked from the city name so a trip always
+    /// looks the same (same palette and hash as the web app's tripVisuals.ts).
+    private static let destinationPalettes: [(UInt32, UInt32)] = [
+        (0x001F65, 0x6895FD), // brand navy to periwinkle
+        (0x083B47, 0x2FA6A0), // lagoon
+        (0x5A1E3A, 0xE27A8F), // dusk
+        (0x34195E, 0x9B7BEA), // plum
+        (0x163F2A, 0x5DBA82), // forest
+        (0x62290B, 0xEE9B52), // desert
+    ]
+
+    static func destinationGradient(for location: String, muted: Bool = false) -> LinearGradient {
+        let pair: (UInt32, UInt32)
+        if muted {
+            pair = (0x5B6476, 0xA9B1C2)
+        } else {
+            let city = location.split(separator: ",").first.map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+            var hash: UInt32 = 0
+            for unit in city.utf16 { hash = hash &* 31 &+ UInt32(unit) }
+            pair = destinationPalettes[Int(hash % UInt32(destinationPalettes.count))]
+        }
+        return LinearGradient(colors: [Color(hex: pair.0), Color(hex: pair.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
+extension Color {
+    init(hex: UInt32) {
+        self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
+}
