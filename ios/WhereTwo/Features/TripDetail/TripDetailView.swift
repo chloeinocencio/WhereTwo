@@ -409,20 +409,9 @@ private struct TripHeader: View {
         .padding(.top, 8)
         .padding(.bottom, 24)
         .background {
-            // The same travel photo as the web header, darkened toward the bottom
-            // where the title and details sit.
-            ZStack {
-                Image("AuthBackground")
-                    .resizable()
-                    .scaledToFill()
-                LinearGradient(
-                    colors: [Theme.ink.opacity(0.25), Theme.ink.opacity(0.55), Theme.ink.opacity(0.9)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .ignoresSafeArea(edges: .top)
-            .clipped()
+            // The destination's own photo, or the default travel photo until it's found.
+            PlacePhotoBackground(location: trip.location, fallbackImage: "AuthBackground")
+                .ignoresSafeArea(edges: .top)
         }
     }
 

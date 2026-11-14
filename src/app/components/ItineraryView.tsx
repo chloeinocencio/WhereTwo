@@ -23,6 +23,7 @@ import {
 import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
 import { INK, MIST, TODAY, getActivityKind } from '../../lib/tripVisuals';
+import { usePlacePhoto } from '../../lib/placePhotos';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 
@@ -280,6 +281,7 @@ function ActivityCardInner({
 export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewProps) {
   const [itinerary, setItinerary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const placePhoto = usePlacePhoto(itinerary?.location);
   const [activeDay, setActiveDay] = useState(0);
   const [activeTab, setActiveTab] = useState<'plan' | 'flights' | 'map'>('plan');
   const [weather, setWeather] = useState<Record<string, { tempMax: number; tempMin: number; code: number }>>({});
@@ -575,7 +577,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
 
       {/* ── Header: trip name over the travel photo ──────────────────────────── */}
       <header className="relative overflow-hidden text-white" style={{ background: INK }}>
-        <img src={headerBg} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
+        {/* The destination's own photo once it's found; the default travel photo until then */}
+        <img src={placePhoto?.url || headerBg} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_42%]" />
         {/* Darken toward the bottom-left, where the title and details sit, so they stay readable */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0E1F4D]/90 via-[#0E1F4D]/55 to-[#0E1F4D]/25" />
         <div className="relative max-w-5xl mx-auto px-5 sm:px-8 pt-4 pb-6">
@@ -627,6 +630,17 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
             )}
             {itinerary.base && <span className="flex items-center gap-1.5"><BedDouble className="w-4 h-4 text-white/70" />{itinerary.base}</span>}
           </div>
+
+          {placePhoto && (
+            <a
+              href={placePhoto.creditUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute bottom-2 right-5 sm:right-8 text-[11px] text-white/60 hover:text-white hover:underline"
+            >
+              Photo: Wikimedia Commons
+            </a>
+          )}
 
           {/* Travelers */}
           <div className="mt-5 flex items-center gap-3">

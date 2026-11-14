@@ -227,10 +227,9 @@ private struct Avatars: View {
     }
 }
 
-/// A row of the trip's stops as colored markers, so each card hints at what the plan holds.
+/// A line naming the first stops, so each card hints at what the plan holds.
 private struct PlanPreview: View {
     let trip: Itinerary
-    var max = 7
 
     var body: some View {
         let stops = trip.plan.flatMap(\.activities)
@@ -239,23 +238,12 @@ private struct PlanPreview: View {
                 .font(.subheadline)
                 .foregroundStyle(Theme.slate)
         } else {
-            HStack(spacing: 6) {
-                ForEach(Array(stops.prefix(max).enumerated()), id: \.offset) { _, stop in
-                    Image(systemName: stop.symbolName)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(stop.kind.tint)
-                        .frame(width: 28, height: 28)
-                        .background(stop.kind.tint.opacity(0.12), in: Circle())
-                }
-                if stops.count > max {
-                    Text("+\(stops.count - max)")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Theme.slate)
-                        .padding(.leading, 2)
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(stops.count) stops planned")
+            let names = stops.prefix(2).map(\.shortTitle).joined(separator: ", ")
+            let more = stops.count - min(stops.count, 2)
+            (Text(names).fontWeight(.medium).foregroundStyle(Theme.ink)
+                + Text(more > 0 ? " and \(more) more stop\(more == 1 ? "" : "s")" : ""))
+                .font(.subheadline)
+                .foregroundStyle(Theme.slate)
         }
     }
 }
@@ -303,8 +291,8 @@ private struct FeaturedTripCard: View {
             }
             .foregroundStyle(.white)
             .padding(20)
-            .frame(maxWidth: .infinity, minHeight: 210, alignment: .leading)
-            .background(Theme.destinationGradient(for: trip.location))
+            .frame(maxWidth: .infinity, minHeight: 230, alignment: .leading)
+            .background { PlacePhotoBackground(location: trip.location) }
 
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -321,21 +309,21 @@ private struct FeaturedTripCard: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Today").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
                         ForEach(Array(plan.activities.prefix(3).enumerated()), id: \.offset) { index, stop in
-                            HStack(spacing: 12) {
-                                Image(systemName: store.isCompleted(trip: trip.id, day: day, index: index) ? "checkmark" : stop.symbolName)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(stop.kind.tint)
-                                    .frame(width: 32, height: 32)
-                                    .background(stop.kind.tint.opacity(0.12), in: Circle())
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(stop.shortTitle).font(.callout.weight(.medium)).foregroundStyle(Theme.ink).lineLimit(1)
-                                    Text(stop.timeSlot).font(.caption).foregroundStyle(Theme.slate)
-                                }
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                Text(stop.timeSlot)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.slate)
+                                    .frame(width: 84, alignment: .leading)
+                                Text(stop.shortTitle)
+                                    .font(.callout.weight(.medium))
+                                    .foregroundStyle(Theme.ink)
+                                    .strikethrough(store.isCompleted(trip: trip.id, day: day, index: index), color: Theme.slate)
+                                    .lineLimit(1)
                             }
                         }
                     }
                 } else {
-                    PlanPreview(trip: trip, max: 8)
+                    PlanPreview(trip: trip)
                 }
             }
             .padding(20)
@@ -373,8 +361,9 @@ private struct TripCard: View {
             }
             .foregroundStyle(.white)
             .padding(18)
-            .frame(maxWidth: .infinity, minHeight: 130, alignment: .leading)
-            .background(Theme.destinationGradient(for: trip.location, muted: trip.isPast))
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
+            .background { PlacePhotoBackground(location: trip.location, muted: trip.isPast) }
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .center) {

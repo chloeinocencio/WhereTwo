@@ -19,9 +19,10 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import logo from '../../assets/logo.png';
 import headerBg from '../../assets/header.jpg';
 import {
-  INK, SLATE, MIST, PAPER, TODAY, getActivityKind, destinationColors, splitPlace, tripStatus, sortTrips,
+  INK, SLATE, MIST, PAPER, TODAY, destinationColors, splitPlace, tripStatus, sortTrips,
   type TripStatus,
 } from '../../lib/tripVisuals';
+import { usePlacePhoto } from '../../lib/placePhotos';
 
 // ─── Animation variants ───────────────────────────────────────────────────────
 const fadeUp: any = {
@@ -147,30 +148,59 @@ function Avatars({ names, ring, fill = '#fff' }: { names: string[]; ring: string
   );
 }
 
-/** A row of the trip's stops as colored markers, so each card hints at what the plan holds. */
-function PlanPreview({ trip, max = 12 }: { trip: any; max?: number }) {
+/** A line naming the first stops, so each card hints at what the plan holds. */
+function PlanPreview({ trip }: { trip: any }) {
   const stops = (trip.plan || []).flatMap((d: any) => d.activities || []);
   if (stops.length === 0) {
     return <p className="text-sm" style={{ color: SLATE }}>No plan yet. Open the trip to make one.</p>;
   }
+  const names = stops.slice(0, 2).map((stop: any) => shortName(stop.title));
+  const more = stops.length - names.length;
   return (
-    <div className="flex flex-wrap items-center gap-1.5" aria-label={`${stops.length} stops planned`}>
-      {stops.slice(0, max).map((stop: any, i: number) => {
-        const kind = getActivityKind(stop.type);
-        const Icon = kind.icon;
-        return (
-          <span
-            key={stop.id || i}
-            title={stop.title}
-            className="grid h-7 w-7 place-items-center rounded-full"
-            style={{ background: `${kind.color}1F`, color: kind.color }}
-          >
-            <Icon className="h-3.5 w-3.5" strokeWidth={2.3} />
-          </span>
-        );
-      })}
-      {stops.length > max && (
-        <span className="ml-1 text-sm font-medium" style={{ color: SLATE }}>+{stops.length - max}</span>
+    <p className="text-sm leading-relaxed" style={{ color: SLATE }}>
+      <span className="font-medium" style={{ color: INK }}>{names.join(', ')}</span>
+      {more > 0 && ` and ${more} more stop${more === 1 ? '' : 's'}`}
+    </p>
+  );
+}
+
+function shortName(title: string) {
+  return (title || '').replace(/\s*\([^)]*\)\s*$/, '');
+}
+
+/**
+ * The destination's photo (from Wikipedia) with a dark wash so white text reads on it.
+ * Falls back to the destination's color pair while loading or when there's no good photo.
+ */
+function PlacePhotoPanel({ location, muted, className, children }: {
+  location: string; muted?: boolean; className?: string; children: React.ReactNode;
+}) {
+  const photo = usePlacePhoto(location);
+  const [deep, light] = muted ? ['#5B6476', '#A9B1C2'] : destinationColors(location);
+  return (
+    <div className={`relative overflow-hidden text-white ${className || ''}`} style={{ background: `linear-gradient(140deg, ${deep} 0%, ${light} 100%)` }}>
+      {photo && (
+        <img
+          src={photo.url}
+          alt=""
+          loading="lazy"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${muted ? 'grayscale' : ''}`}
+          onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+          ref={(el) => { if (el && !el.complete) el.classList.add('opacity-0'); }}
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+      <div className="relative h-full">{children}</div>
+      {photo && (
+        <a
+          href={photo.creditUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-1.5 right-2.5 text-[10px] text-white/60 hover:text-white hover:underline"
+        >
+          Photo: Wikimedia Commons
+        </a>
       )}
     </div>
   );
@@ -193,7 +223,6 @@ function StatusChip({ status, onDark }: { status: TripStatus; onDark?: boolean }
 
 /** The trip that's happening now, or the next one coming up, shown large at the top. */
 function FeaturedTrip({ trip, onOpen }: { trip: any; onOpen: () => void }) {
-  const [deep, light] = destinationColors(trip.location);
   const { city, region } = splitPlace(trip.location);
   const status = tripStatus(trip);
   const todayStops = status.kind === 'underway' ? (trip.plan?.[status.day - 1]?.activities || []) : [];
@@ -203,30 +232,29 @@ function FeaturedTrip({ trip, onOpen }: { trip: any; onOpen: () => void }) {
       onClick={onOpen}
       className="group grid w-full overflow-hidden rounded-[28px] text-left shadow-[0_18px_40px_-24px_rgba(14,31,77,0.55)] ring-1 ring-black/5 md:grid-cols-[1.15fr_1fr] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
     >
-      {/* Destination panel */}
-      <div
-        className="relative flex min-h-[220px] flex-col justify-between p-6 sm:p-8 text-white"
-        style={{ background: `linear-gradient(140deg, ${deep} 0%, ${light} 100%)` }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <StatusChip status={status} onDark />
-          <Avatars names={travelers(trip)} ring={deep} />
+      {/* Destination photo */}
+      <PlacePhotoPanel location={trip.location} className="min-h-[240px]">
+        <div className="flex h-full min-h-[240px] flex-col justify-between p-6 sm:p-8">
+          <div className="flex items-center justify-between gap-3">
+            <StatusChip status={status} onDark />
+            <Avatars names={travelers(trip)} ring="rgba(255,255,255,0.6)" />
+          </div>
+          <div>
+            {status.kind === 'upcoming' && (
+              <p className="font-display text-[64px] sm:text-[84px] font-extrabold leading-[0.9] tracking-[-0.04em] text-white/95">
+                {status.daysAway}
+                <span className="ml-2 align-top text-lg font-semibold tracking-normal text-white/85">
+                  day{status.daysAway === 1 ? '' : 's'} to go
+                </span>
+              </p>
+            )}
+            <h3 className="font-display mt-2 text-[40px] sm:text-[52px] font-bold leading-[0.95] tracking-[-0.03em] text-balance drop-shadow-sm">
+              {city}
+            </h3>
+            {region && <p className="mt-1.5 text-[15px] text-white/85">{region}</p>}
+          </div>
         </div>
-        <div>
-          {status.kind === 'upcoming' && (
-            <p className="font-display text-[64px] sm:text-[84px] font-extrabold leading-[0.9] tracking-[-0.04em] text-white/95">
-              {status.daysAway}
-              <span className="ml-2 align-top text-lg font-semibold tracking-normal text-white/80">
-                day{status.daysAway === 1 ? '' : 's'} to go
-              </span>
-            </p>
-          )}
-          <h3 className="font-display mt-2 text-[40px] sm:text-[52px] font-bold leading-[0.95] tracking-[-0.03em] text-balance">
-            {city}
-          </h3>
-          {region && <p className="mt-1.5 text-[15px] text-white/80">{region}</p>}
-        </div>
-      </div>
+      </PlacePhotoPanel>
 
       {/* Details */}
       <div className="flex flex-col gap-5 bg-white p-6 sm:p-8">
@@ -240,24 +268,13 @@ function FeaturedTrip({ trip, onOpen }: { trip: any; onOpen: () => void }) {
         {todayStops.length > 0 ? (
           <div>
             <p className="mb-2.5 text-sm font-semibold" style={{ color: INK }}>Today</p>
-            <ul className="space-y-2">
-              {todayStops.slice(0, 3).map((stop: any, i: number) => {
-                const kind = getActivityKind(stop.type);
-                const Icon = kind.icon;
-                return (
-                  <li key={stop.id || i} className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: `${kind.color}1F`, color: kind.color }}>
-                      <Icon className="h-4 w-4" strokeWidth={2.3} />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-medium" style={{ color: INK }}>
-                        {stop.title.replace(/\s*\([^)]*\)\s*$/, '')}
-                      </span>
-                      <span className="block text-xs" style={{ color: SLATE }}>{stop.timeSlot}</span>
-                    </span>
-                  </li>
-                );
-              })}
+            <ul className="space-y-2.5">
+              {todayStops.slice(0, 3).map((stop: any, i: number) => (
+                <li key={stop.id || i} className="grid grid-cols-[84px_minmax(0,1fr)] items-baseline gap-3">
+                  <span className="text-sm" style={{ color: SLATE }}>{stop.timeSlot}</span>
+                  <span className="truncate text-[15px] font-medium" style={{ color: INK }}>{shortName(stop.title)}</span>
+                </li>
+              ))}
             </ul>
           </div>
         ) : (
@@ -276,7 +293,6 @@ function FeaturedTrip({ trip, onOpen }: { trip: any; onOpen: () => void }) {
 function TripCard({ trip, canDelete, onOpen, onDelete }: { trip: any; canDelete: boolean; onOpen: () => void; onDelete: (e: React.MouseEvent) => void }) {
   const status = tripStatus(trip);
   const past = status.kind === 'past';
-  const [deep, light] = past ? ['#5B6476', '#A9B1C2'] : destinationColors(trip.location);
   const { city, region } = splitPlace(trip.location);
 
   return (
@@ -287,24 +303,26 @@ function TripCard({ trip, canDelete, onOpen, onDelete }: { trip: any; canDelete:
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#DDE4F3] transition-shadow hover:shadow-[0_14px_30px_-20px_rgba(14,31,77,0.6)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
     >
-      <div className="relative h-32 p-5 text-white" style={{ background: `linear-gradient(140deg, ${deep} 0%, ${light} 100%)` }}>
-        <div className="flex items-start justify-between gap-2">
-          <StatusChip status={status} onDark />
-          {canDelete && (
-            <button
-              onClick={onDelete}
-              className="rounded-full p-1.5 text-white/70 opacity-0 transition-opacity hover:bg-white/15 hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
-              aria-label={`Delete ${trip.title}`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
+      <PlacePhotoPanel location={trip.location} muted={past} className="h-40">
+        <div className="flex h-full flex-col justify-between p-5">
+          <div className="flex items-start justify-between gap-2">
+            <StatusChip status={status} onDark />
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="rounded-full p-1.5 text-white/80 opacity-0 transition-opacity hover:bg-white/15 hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+                aria-label={`Delete ${trip.title}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="pb-2">
+            <h3 className="font-display truncate text-[30px] font-bold leading-none tracking-[-0.025em] drop-shadow-sm">{city}</h3>
+            {region && <p className="mt-1 truncate text-sm text-white/85">{region}</p>}
+          </div>
         </div>
-        <div className="absolute bottom-4 left-5 right-5">
-          <h3 className="font-display truncate text-[30px] font-bold leading-none tracking-[-0.025em]">{city}</h3>
-          {region && <p className="mt-1 truncate text-sm text-white/80">{region}</p>}
-        </div>
-      </div>
+      </PlacePhotoPanel>
       <div className="flex flex-1 flex-col gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -313,7 +331,7 @@ function TripCard({ trip, canDelete, onOpen, onDelete }: { trip: any; canDelete:
           </div>
           <Avatars names={travelers(trip)} ring="#fff" fill="#E6ECF8" />
         </div>
-        <PlanPreview trip={trip} max={7} />
+        <PlanPreview trip={trip} />
       </div>
     </div>
   );
