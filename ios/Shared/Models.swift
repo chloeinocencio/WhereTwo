@@ -100,18 +100,41 @@ struct PlanItem: Codable, Hashable {
         return trimmed.isEmpty ? title : trimmed
     }
 
+    /// Activity category, shared by the icon and tint so they always agree (same set as the web app).
+    enum Kind {
+        case sightseeing, dining, shopping, culture, nature, entertainment, relaxation, other
+    }
+
+    var kind: Kind {
+        let t = type.lowercased()
+        if t.contains("din") || t.contains("food") || t.contains("restaurant") { return .dining }
+        if t.contains("museum") || t.contains("art") || t.contains("culture") { return .culture }
+        if t.contains("shop") || t.contains("market") { return .shopping }
+        if t.contains("nature") || t.contains("park") || t.contains("outdoor") || t.contains("adventure") { return .nature }
+        if t.contains("night") || t.contains("bar") || t.contains("entertain") { return .entertainment }
+        if t.contains("relax") || t.contains("wellness") || t.contains("spa") { return .relaxation }
+        if t.contains("sight") { return .sightseeing }
+        return .other
+    }
+
     var symbolName: String {
-        switch type.lowercased() {
-        case let t where t.contains("din") || t.contains("food") || t.contains("restaurant"): return "fork.knife"
-        case let t where t.contains("museum") || t.contains("art") || t.contains("culture"): return "building.columns"
-        case let t where t.contains("shop") || t.contains("market"): return "bag"
-        case let t where t.contains("nature") || t.contains("park") || t.contains("outdoor"): return "leaf"
-        case let t where t.contains("night") || t.contains("bar") || t.contains("entertain"): return "moon.stars"
-        case let t where t.contains("relax") || t.contains("wellness") || t.contains("spa"): return "cup.and.saucer"
-        case let t where t.contains("transport") || t.contains("travel"): return "tram"
-        case let t where t.contains("adventure"): return "figure.hiking"
-        default: return "mappin.and.ellipse"
+        switch kind {
+        case .sightseeing: return "building.columns"
+        case .dining: return "fork.knife"
+        case .shopping: return "bag"
+        case .culture: return "paintpalette"
+        case .nature: return "tree"
+        case .entertainment: return "ticket"
+        case .relaxation: return "cup.and.saucer"
+        case .other: return "mappin"
         }
+    }
+
+    /// The street address Gemini puts in parentheses after the name, if any.
+    var address: String? {
+        guard let open = title.firstIndex(of: "("), let close = title.lastIndex(of: ")"), open < close else { return nil }
+        let inner = String(title[title.index(after: open)..<close])
+        return inner.rangeOfCharacter(from: .decimalDigits) != nil ? inner : nil
     }
 }
 

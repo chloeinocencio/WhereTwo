@@ -43,37 +43,46 @@ struct TripDetailView: View {
 
     private func content(_ trip: Itinerary) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 0) {
                 TripHeader(trip: trip, isOwner: isOwner(trip)) { showingInvite = true }
 
-                if store.generating.contains(trip.id) {
-                    generatingCard
-                } else if trip.plan.isEmpty {
-                    emptyPlanCard(trip)
-                } else {
-                    dayPicker(trip)
-                    Picker("View", selection: $mode) {
-                        ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
-                    }
-                    .pickerStyle(.segmented)
+                VStack(alignment: .leading, spacing: 20) {
+                    if store.generating.contains(trip.id) {
+                        generatingCard
+                    } else if trip.plan.isEmpty {
+                        emptyPlanCard(trip)
+                    } else {
+                        Picker("View", selection: $mode) {
+                            ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
+                        }
+                        .pickerStyle(.segmented)
 
-                    if trip.dayNumber() == selectedDay && LiveActivityManager.isSupported {
-                        liveActivityCard(trip)
+                        dayPicker(trip)
+
+                        dayHeading(trip)
+
+                        if trip.dayNumber() == selectedDay && LiveActivityManager.isSupported {
+                            liveActivityCard(trip)
+                        }
+
+                        switch mode {
+                        case .plan: dayPlan(trip)
+                        case .map: DayMapView(trip: trip, day: selectedDay)
+                        }
                     }
 
-                    switch mode {
-                    case .plan: dayPlan(trip)
-                    case .map: DayMapView(trip: trip, day: selectedDay)
+                    if !trip.flights.isEmpty {
+                        FlightsSection(flights: trip.flights)
                     }
                 }
-
-                if !trip.flights.isEmpty {
-                    FlightsSection(flights: trip.flights)
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
             }
-            .padding(16)
         }
         .background(Color(.systemGroupedBackground))
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .refreshable { await store.refreshTrip(id: trip.id) }
         .toolbar { toolbarMenu(trip) }
         .sheet(isPresented: $showingInvite) { InviteView(trip: trip) }
@@ -122,6 +131,7 @@ struct TripDetailView: View {
 
     // MARK: - Pieces
 
+    /// Day tiles, matching the web trip page: big day number, weekday and date, a dot for today.
     private func dayPicker(_ trip: Itinerary) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -131,53 +141,94 @@ struct TripDetailView: View {
                         Button {
                             withAnimation(.snappy) { selectedDay = day }
                         } label: {
-                            VStack(spacing: 2) {
-                                Text("Day \(day)").font(.subheadline.bold())
-                                if let date = date(of: day, in: trip) {
-                                    Text(date.formatted(.dateTime.weekday(.abbreviated).day()))
-                                        .font(.caption2)
-                                        .opacity(0.8)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(day)")
+                                    .font(Theme.display(26))
+                                Text(date(of: day, in: trip)?.formatted(.dateTime.weekday(.abbreviated).day()) ?? "Day \(day)")
+                                    .font(.caption)
+                                    .foregroundStyle(selected ? Color.white.opacity(0.75) : Theme.slate)
+                            }
+                            .frame(width: 62, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .foregroundStyle(selected ? Color.white : Theme.ink)
+                            .background(selected ? Theme.ink : Color(.secondarySystemGroupedBackground),
+                                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay {
+                                if !selected {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.mist)
                                 }
                             }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(selected ? AnyShapeStyle(Theme.blue) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .foregroundStyle(selected ? .white : .primary)
                             .overlay(alignment: .topTrailing) {
                                 if trip.dayNumber() == day {
-                                    Circle().fill(.orange).frame(width: 8, height: 8).offset(x: -6, y: 6)
+                                    Circle().fill(Theme.today).frame(width: 8, height: 8).padding(10)
                                 }
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(dayAccessibilityLabel(day, in: trip))
+                        .accessibilityAddTraits(selected ? .isSelected : [])
                         .id(day)
                     }
                 }
+                .padding(.vertical, 1)
             }
             .sensoryFeedback(.selection, trigger: selectedDay)
             .onAppear { proxy.scrollTo(selectedDay, anchor: .center) }
+            .onChange(of: selectedDay) { _, day in withAnimation { proxy.scrollTo(day, anchor: .center) } }
         }
+    }
+
+    private func dayHeading(_ trip: Itinerary) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(date(of: selectedDay, in: trip)?.formatted(.dateTime.weekday(.wide).month(.wide).day()) ?? "Day \(selectedDay)")
+                .font(Theme.display(28))
+                .foregroundStyle(Theme.ink)
+            HStack(spacing: 10) {
+                if trip.dayNumber() == selectedDay {
+                    Text("Today")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color(red: 0x8A / 255, green: 0x53 / 255, blue: 0))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(Color(red: 0xFD / 255, green: 0xF0 / 255, blue: 0xD9 / 255), in: Capsule())
+                }
+                Text("Day \(selectedDay) of \(trip.plan.count)")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.slate)
+            }
+        }
+        .padding(.top, 4)
     }
 
     @ViewBuilder
     private func dayPlan(_ trip: Itinerary) -> some View {
         if let plan = trip.plan(forDay: selectedDay), !plan.activities.isEmpty {
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
                 ForEach(Array(plan.activities.enumerated()), id: \.offset) { index, item in
                     PlanItemRow(
                         item: item,
                         place: trip.place,
-                        isDone: store.isCompleted(trip: trip.id, day: selectedDay, index: index)
+                        isDone: store.isCompleted(trip: trip.id, day: selectedDay, index: index),
+                        showSlot: index == 0 || plan.activities[index - 1].timeSlot != item.timeSlot,
+                        isLast: index == plan.activities.count - 1
                     ) {
                         store.toggleCompleted(trip: trip, day: selectedDay, index: index)
                     }
                 }
             }
         } else {
-            ContentUnavailableView("Free day", systemImage: "sun.max",
-                                   description: Text("Nothing planned — wander and see what you find."))
+            Text("Nothing planned for this day. Keep it free to wander, or add stops on the web.")
+                .font(.callout)
+                .foregroundStyle(Theme.slate)
         }
+    }
+
+    private func dayAccessibilityLabel(_ day: Int, in trip: Itinerary) -> String {
+        var label = "Day \(day)"
+        if let date = date(of: day, in: trip) { label += ", " + date.formatted(.dateTime.weekday(.wide).month(.wide).day()) }
+        if trip.dayNumber() == day { label += ", today" }
+        return label
     }
 
     private func liveActivityCard(_ trip: Itinerary) -> some View {
@@ -309,53 +360,64 @@ private struct TripHeader: View {
     let isOwner: Bool
     let onInvite: () -> Void
 
+    private var travelers: [String] { [trip.ownerUsername] + trip.collaborators.map(\.username) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(trip.title)
-                .font(.largeTitle.bold())
+                .font(Theme.display(34))
                 .foregroundStyle(.white)
-            HStack(spacing: 14) {
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 6) {
                 Label(trip.place, systemImage: "mappin")
-                if !trip.base.isEmpty { Label(trip.base, systemImage: "bed.double") }
+                if let range = trip.dateRangeText {
+                    Label(range, systemImage: "calendar")
+                }
+                if !trip.base.isEmpty {
+                    Label(trip.base, systemImage: "bed.double")
+                }
             }
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.85))
-            if let range = trip.dateRangeText {
-                Label(range, systemImage: "calendar")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
-            }
 
-            HStack(spacing: -8) {
-                avatar(trip.ownerUsername)
-                ForEach(trip.collaborators, id: \.userId) { avatar($0.username) }
+            HStack(spacing: 10) {
+                HStack(spacing: -8) {
+                    ForEach(travelers, id: \.self) { avatar($0) }
+                }
+                Text(travelers.map { "@\($0)" }.joined(separator: ", "))
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
                 if isOwner {
                     Button(action: onInvite) {
-                        Image(systemName: "plus")
-                            .font(.caption.bold())
-                            .frame(width: 32, height: 32)
-                            .background(.white.opacity(0.2), in: Circle())
-                            .overlay(Circle().strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [3])))
+                        Label("Invite", systemImage: "person.badge.plus")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(.white.opacity(0.18), in: Capsule())
+                            .overlay(Capsule().strokeBorder(.white.opacity(0.3)))
                             .foregroundStyle(.white)
                     }
-                    .padding(.leading, 14)
-                    .accessibilityLabel("Invite someone")
                 }
             }
-            .padding(.top, 4)
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Theme.headerGradient, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 24)
+        .background(Theme.headerGradient.ignoresSafeArea(edges: .top))
     }
 
     private func avatar(_ name: String) -> some View {
         Text(String(name.prefix(1)).uppercased())
-            .font(.caption.bold())
+            .font(.footnote.weight(.semibold))
             .frame(width: 32, height: 32)
-            .background(Theme.sky, in: Circle())
-            .overlay(Circle().strokeBorder(Theme.navy, lineWidth: 2))
-            .foregroundStyle(.white)
+            .background(.white, in: Circle())
+            .overlay(Circle().strokeBorder(Theme.iconMid, lineWidth: 2))
+            .foregroundStyle(Theme.ink)
             .accessibilityLabel("@\(name)")
     }
 }

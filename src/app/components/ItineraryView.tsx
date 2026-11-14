@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { API_BASE, authHeaders } from '../../lib/supabase';
 import {
@@ -16,15 +16,14 @@ import { Textarea } from './ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Badge } from './ui/badge';
 import {
-  ArrowLeft, MapPin, Calendar, Users, UserPlus,
-  Edit2, Check, X, Clock, DollarSign, Navigation,
-  Info, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
-  ExternalLink, Map as MapIcon, Search,
+  ArrowLeft, MapPin, Calendar, UserPlus, Edit2, Check, X, Clock, DollarSign, Navigation,
+  Info, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Plus, Trash2, Plane, GripVertical,
+  ExternalLink, Map as MapIcon, Search, BedDouble, Landmark, UtensilsCrossed, ShoppingBag,
+  Palette, Trees, Mountain, Ticket, Coffee, type LucideIcon,
 } from 'lucide-react';
-import { format, addDays, parseISO } from 'date-fns';
+import { format, addDays, parseISO, isSameDay } from 'date-fns';
 import { WeatherIcon } from './WeatherIcon';
 import logo from '../../assets/logo.png';
-import headerBg from '../../assets/header.jpg';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ItineraryViewProps {
@@ -82,21 +81,36 @@ const AIRLINES = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const ACTIVITY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  sightseeing:   { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-400' },
-  food:          { bg: 'bg-orange-50',  text: 'text-orange-700',  dot: 'bg-orange-400' },
-  dining:        { bg: 'bg-orange-50',  text: 'text-orange-700',  dot: 'bg-orange-400' },
-  shopping:      { bg: 'bg-purple-50',  text: 'text-purple-700',  dot: 'bg-purple-400' },
-  culture:       { bg: 'bg-pink-50',    text: 'text-pink-700',    dot: 'bg-pink-400' },
-  adventure:     { bg: 'bg-green-50',   text: 'text-green-700',   dot: 'bg-green-400' },
-  nature:        { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-400' },
-  entertainment: { bg: 'bg-yellow-50',  text: 'text-yellow-700',  dot: 'bg-yellow-400' },
-  relaxation:    { bg: 'bg-teal-50',    text: 'text-teal-700',    dot: 'bg-teal-400' },
-  default:       { bg: 'bg-slate-50',   text: 'text-slate-600',   dot: 'bg-slate-400' },
-};
+// Trip page palette: ink text on a cool paper background, brand gradient in the header.
+const INK = '#0E1F4D';
+const MIST = '#DDE4F3';
+const TODAY = '#F5A524';
 
-function getActivityColor(type: string) {
-  return ACTIVITY_COLORS[type?.toLowerCase()] ?? ACTIVITY_COLORS.default;
+// Icon and tint for each activity type, used for the stop markers on the day's route.
+const ACTIVITY_KINDS: Record<string, { icon: LucideIcon; color: string }> = {
+  sightseeing:   { icon: Landmark,        color: '#3D63DD' },
+  food:          { icon: UtensilsCrossed, color: '#D9672E' },
+  dining:        { icon: UtensilsCrossed, color: '#D9672E' },
+  shopping:      { icon: ShoppingBag,     color: '#8E54D6' },
+  culture:       { icon: Palette,         color: '#C2477E' },
+  museums:       { icon: Palette,         color: '#C2477E' },
+  nature:        { icon: Trees,           color: '#24936A' },
+  adventure:     { icon: Mountain,        color: '#24936A' },
+  entertainment: { icon: Ticket,          color: '#6A4CC9' },
+  nightlife:     { icon: Ticket,          color: '#6A4CC9' },
+  relaxation:    { icon: Coffee,          color: '#23929C' },
+};
+const DEFAULT_KIND = { icon: MapPin, color: '#5B6B8C' };
+
+function getActivityKind(type: string) {
+  const key = (type || '').toLowerCase();
+  return ACTIVITY_KINDS[key] ?? Object.entries(ACTIVITY_KINDS).find(([k]) => key.includes(k))?.[1] ?? DEFAULT_KIND;
+}
+
+/** Gemini writes "Place Name (street address)"; show the name as the title and the address under it. */
+function splitTitle(title: string) {
+  const match = /^(.*?)\s*\(([^)]*\d[^)]*)\)\s*$/.exec(title || '');
+  return match ? { name: match[1], address: match[2] } : { name: title, address: '' };
 }
 
 function parseDescription(description: string) {
@@ -109,7 +123,7 @@ function parseDescription(description: string) {
       sections.hours += (sections.hours ? '. ' : '') + line;
     else if (l.includes('¥') || l.includes('$') || l.includes('€') || l.includes('£') || l.includes('entry') || l.includes('admission') || l.includes('free'))
       sections.price += (sections.price ? '. ' : '') + line;
-    else if (l.includes('walk') || l.includes('station') || l.includes('metro') || l.includes('subway') || l.includes('train') || l.includes('bus'))
+    else if (/\b(minute|min)s?\s+walk|\bwalk\s+(from|to)\b|\bstation\b|\bmetro\b|\bsubway\b|\btrain\b|\bbus\b|\btaxi\b/.test(l))
       sections.transit += (sections.transit ? '. ' : '') + line;
     else if (l.includes('reservation') || l.includes('book') || l.includes('wait') || l.includes('best') || l.includes('arrive') || l.includes('avoid'))
       sections.tips += (sections.tips ? '. ' : '') + line;
@@ -131,11 +145,6 @@ function generateId() {
 }
 
 
-// ─── Animation variants ───────────────────────────────────────────────────────
-const staggerList: any = {
-  animate: { transition: { staggerChildren: 0.06 } },
-};
-
 // ─── Sortable activity card ───────────────────────────────────────────────────
 interface ActivityCardProps {
   activity: any;
@@ -144,6 +153,10 @@ interface ActivityCardProps {
   editedActivity: any;
   isDragging?: boolean;
   location?: string;
+  /** Show the time-slot label (only on the first stop of each slot). */
+  showSlot?: boolean;
+  /** Last stop of the day: the route line stops here. */
+  isLast?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onSave: () => void;
@@ -170,122 +183,119 @@ function SortableActivityCard(props: ActivityCardProps) {
 }
 
 function ActivityCardInner({
-  activity, dayIndex, isEditing, editedActivity, isDragging = false, location = '',
+  activity, isEditing, editedActivity, isDragging = false, location = '', showSlot = true, isLast = false,
   onEdit, onDelete, onSave, onCancel, onEditedChange, dragHandleProps,
 }: ActivityCardProps & { dragHandleProps?: any }) {
-  const color = getActivityColor(activity.type);
+  const kind = getActivityKind(activity.type);
+  const Icon = kind.icon;
   const parsed = parseDescription(activity.description || '');
+  const { name, address } = splitTitle(activity.title);
+  const facts = [
+    { text: parsed.hours, icon: Clock },
+    { text: parsed.price, icon: DollarSign },
+    { text: parsed.transit, icon: Navigation },
+    { text: parsed.tips, icon: Info },
+  ].filter((f) => f.text);
 
   return (
-    <div className="relative">
-      {/* Timeline dot */}
-      <div className={`absolute -left-6 top-5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${color.dot}`} />
+    <div className={`group grid sm:grid-cols-[96px_minmax(0,1fr)] sm:gap-x-6 ${isDragging ? 'rounded-2xl bg-white shadow-xl ring-1 ring-[#DDE4F3] px-4 pt-4' : ''}`}>
+      {/* Time of day, aligned with the stop's marker */}
+      <div className="hidden sm:block pt-2 text-right text-sm font-medium" style={{ color: '#5B6B8C' }}>
+        {showSlot ? activity.timeSlot : ''}
+      </div>
 
-      <div className={`rounded-2xl border border-border/60 bg-white overflow-hidden shadow-sm transition-all duration-300 ${
-        isDragging ? 'shadow-2xl scale-[1.02] border-primary/40' : 'hover:shadow-md hover:border-primary/25'
-      }`}>
-        {/* Header strip */}
-        <div className={`px-5 py-3 ${color.bg} border-b border-border/30 flex items-center justify-between`}>
-          <div className="flex items-center gap-2.5">
-            {/* Drag handle */}
-            <button
-              {...dragHandleProps}
-              className="text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing p-0.5 rounded touch-none"
-              title="Hold to reorder"
-            >
-              <GripVertical className="w-4 h-4" />
-            </button>
-            <Badge variant="outline" className={`border-0 font-semibold text-xs px-2 py-0.5 ${color.bg} ${color.text}`}>
-              {activity.type}
-            </Badge>
-            <span className="text-xs font-medium text-muted-foreground bg-white/70 px-2 py-0.5 rounded-full border border-border/40">
-              {activity.timeSlot}
-            </span>
-          </div>
-          {!isEditing && (
-            <div className="flex items-center gap-1">
-              <button onClick={onEdit} className="text-muted-foreground/50 hover:text-primary hover:bg-white/60 p-1.5 rounded-lg transition-all duration-200">
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={onDelete} className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-all duration-200">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+      <div className="relative pl-14 pb-9">
+        {/* Route line to the next stop */}
+        {!isLast && <div className="absolute left-[19px] top-11 bottom-0 w-[2px] rounded-full" style={{ background: MIST }} />}
+        {/* Stop marker */}
+        <div
+          className="absolute left-0 top-0 grid h-10 w-10 place-items-center rounded-full"
+          style={{ background: `${kind.color}1A`, color: kind.color }}
+          title={activity.type}
+        >
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+        </div>
+
+        {isEditing ? (
+          <div className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-[#DDE4F3]">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Title</Label>
+              <Input value={editedActivity.title} onChange={(e) => onEditedChange({ ...editedActivity, title: e.target.value })} className="h-9 text-sm" />
             </div>
-          )}
-        </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Description</Label>
+              <Textarea value={editedActivity.description} onChange={(e) => onEditedChange({ ...editedActivity, description: e.target.value })} className="text-sm resize-none" rows={3} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Notes</Label>
+              <Textarea value={editedActivity.notes || ''} onChange={(e) => onEditedChange({ ...editedActivity, notes: e.target.value })} placeholder="Reservations, who's paying, what to bring…" className="text-sm resize-none" rows={2} />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={onSave} className="h-8"><Check className="w-3.5 h-3.5 mr-1.5" />Save</Button>
+              <Button size="sm" variant="outline" onClick={onCancel} className="h-8"><X className="w-3.5 h-3.5 mr-1.5" />Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex min-h-10 flex-wrap items-center gap-x-3 text-sm" style={{ color: '#5B6B8C' }}>
+              {showSlot && <span className="font-medium sm:hidden">{activity.timeSlot}</span>}
+              {activity.duration && <span>{activity.duration}</span>}
+            </div>
 
-        <div className="p-5">
-          <AnimatePresence mode="wait">
-            {isEditing ? (
-              <motion.div key="editing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Title</Label>
-                  <Input value={editedActivity.title} onChange={(e) => onEditedChange({ ...editedActivity, title: e.target.value })} className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Description</Label>
-                  <Textarea value={editedActivity.description} onChange={(e) => onEditedChange({ ...editedActivity, description: e.target.value })} className="text-sm resize-none" rows={3} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Notes</Label>
-                  <Textarea value={editedActivity.notes || ''} onChange={(e) => onEditedChange({ ...editedActivity, notes: e.target.value })} placeholder="Add personal notes…" className="text-sm resize-none" rows={2} />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Button size="sm" onClick={onSave} className="h-8"><Check className="w-3.5 h-3.5 mr-1.5" />Save</Button>
-                  <Button size="sm" variant="outline" onClick={onCancel} className="h-8"><X className="w-3.5 h-3.5 mr-1.5" />Cancel</Button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div key="viewing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <h4 className="font-bold text-base text-foreground leading-snug mb-3">{activity.title}</h4>
-                {parsed.main && <p className="text-sm text-foreground/75 leading-relaxed mb-3">{parsed.main}</p>}
-                {(parsed.hours || parsed.price || parsed.transit || parsed.tips) && (
-                  <div className="grid gap-2 mb-3">
-                    {parsed.hours && (
-                      <div className="flex items-start gap-2 text-xs text-foreground/65 bg-slate-50 px-3 py-2 rounded-xl">
-                        <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" /><span>{parsed.hours}</span>
-                      </div>
-                    )}
-                    {parsed.price && (
-                      <div className="flex items-start gap-2 text-xs text-foreground/65 bg-slate-50 px-3 py-2 rounded-xl">
-                        <DollarSign className="w-3.5 h-3.5 mt-0.5 shrink-0 text-secondary" /><span>{parsed.price}</span>
-                      </div>
-                    )}
-                    {parsed.transit && (
-                      <div className="flex items-start gap-2 text-xs text-foreground/65 bg-slate-50 px-3 py-2 rounded-xl">
-                        <Navigation className="w-3.5 h-3.5 mt-0.5 shrink-0 text-accent" /><span>{parsed.transit}</span>
-                      </div>
-                    )}
-                    {parsed.tips && (
-                      <div className="flex items-start gap-2 text-xs text-foreground/65 bg-primary/5 border border-primary/15 px-3 py-2 rounded-xl">
-                        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" /><span>{parsed.tips}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-1 rounded-full">{activity.duration}</span>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.title + (location ? `, ${location}` : ''))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-primary transition-colors duration-200"
-                  >
-                    <MapIcon className="w-3.5 h-3.5" />
-                    <span>Maps</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                </div>
-                {activity.notes && (
-                  <div className="mt-3 p-3 bg-primary/5 border-l-[3px] border-primary rounded-r-xl text-sm text-foreground/80">
-                    <span className="font-semibold text-primary">Notes · </span>{activity.notes}
-                  </div>
-                )}
-              </motion.div>
+            <h4 className="font-display text-[19px] font-semibold leading-snug tracking-[-0.01em]" style={{ color: INK }}>{name}</h4>
+            {address && <p className="mt-0.5 text-sm" style={{ color: '#5B6B8C' }}>{address}</p>}
+
+            {parsed.main && (
+              <p className="mt-2.5 max-w-[62ch] text-[15px] leading-relaxed" style={{ color: '#3A4A6B' }}>{parsed.main}</p>
             )}
-          </AnimatePresence>
-        </div>
+
+            {facts.length > 0 && (
+              <ul className="mt-3 max-w-[62ch] space-y-1.5">
+                {facts.map(({ text, icon: FactIcon }, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm leading-snug" style={{ color: '#4A5A7A' }}>
+                    <FactIcon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: kind.color }} />
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {activity.notes && (
+              <p className="mt-3 max-w-[62ch] rounded-xl bg-white px-3.5 py-2.5 text-sm ring-1 ring-[#DDE4F3]" style={{ color: '#3A4A6B' }}>
+                <span className="font-semibold" style={{ color: INK }}>Note: </span>{activity.notes}
+              </p>
+            )}
+
+            <div className="mt-3 flex items-center gap-1">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.title + (location ? `, ${location}` : ''))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-primary hover:bg-primary/8"
+              >
+                <MapIcon className="h-4 w-4" />Directions
+              </a>
+              {/* Edit controls: always visible on touch, revealed on hover/focus with a mouse */}
+              <div className="ml-auto flex items-center gap-0.5 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+                <button onClick={onEdit} className="rounded-lg p-2 text-[#5B6B8C] hover:bg-white hover:text-primary" aria-label="Edit stop">
+                  <Edit2 className="h-4 w-4" />
+                </button>
+                <button onClick={onDelete} className="rounded-lg p-2 text-[#5B6B8C] hover:bg-destructive/10 hover:text-destructive" aria-label="Remove stop">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <button
+                  {...dragHandleProps}
+                  className="cursor-grab touch-none rounded-lg p-2 text-[#5B6B8C] hover:bg-white active:cursor-grabbing"
+                  aria-label="Drag to reorder"
+                  title="Drag to reorder"
+                >
+                  <GripVertical className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -325,7 +335,6 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const [airlineSuggestions, setAirlineSuggestions] = useState<typeof AIRLINES>([]);
   const [showAirlineSuggestions, setShowAirlineSuggestions] = useState(false);
 
-  const dayRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => { fetchItinerary(); }, [itineraryId]);
 
@@ -366,6 +375,10 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
       const data = await response.json();
       if (response.ok) {
         setItinerary(data.itinerary);
+        if (data.itinerary.startDate) {
+          const offset = Math.round((new Date().setHours(0, 0, 0, 0) - parseISO(data.itinerary.startDate).getTime()) / 86400000);
+          if (offset >= 0 && offset < data.itinerary.plan.length) setActiveDay(offset);
+        }
         fetchWeather(data.itinerary.location, data.itinerary.startDate, data.itinerary.endDate);
       }
     } catch (error) { console.error(error); }
@@ -547,9 +560,15 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     await saveFlights(updatedFlights);
   };
 
-  const scrollToDay = (index: number) => {
+  const selectDay = (index: number) => {
+    setActiveTab('plan');
     setActiveDay(index);
-    dayRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Bring the day's heading up under the sticky day strip.
+    const scroller = document.getElementById('trip-scroll');
+    const strip = document.getElementById('trip-days');
+    if (scroller && strip && scroller.scrollTop > strip.offsetTop) {
+      scroller.scrollTo({ top: strip.offsetTop, behavior: 'smooth' });
+    }
   };
 
   // ── Loading ──
@@ -577,52 +596,33 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const flights: any[] = itinerary.flights || [];
 
   return (
-    <div className="size-full flex flex-col overflow-hidden bg-background">
+    <div id="trip-scroll" className="size-full overflow-auto bg-[#F4F6FB]">
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="relative shrink-0 overflow-hidden">
-        <img src={headerBg} alt="" className="absolute inset-0 w-full h-full object-cover object-[center_42%] scale-105 blur-[2px]" />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative z-10 max-w-7xl mx-auto px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <Button
-                variant="ghost" size="icon" onClick={onBack}
-                className="text-white hover:bg-white/20 border border-white/25 backdrop-blur-sm mt-0.5 shrink-0 transition-all duration-200"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
-                  <div className="flex items-center gap-1.5 text-white/80 text-sm">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{itinerary.location}{itinerary.area ? ` · ${itinerary.area}` : ''}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-white/80 text-sm">
-                    <Calendar className="w-3.5 h-3.5" />
-                    {itinerary.startDate && itinerary.endDate ? (
-                      <span>{format(parseISO(itinerary.startDate), 'MMM d')} – {format(parseISO(itinerary.endDate), 'MMM d, yyyy')} · {itinerary.days} days</span>
-                    ) : <span>{itinerary.days} days</span>}
-                  </div>
-                  {itinerary.base && (
-                    <div className="flex items-center gap-1.5 text-white/60 text-xs">
-                      <span>Staying in {itinerary.base}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+      {/* ── Header: trip name on the brand gradient ─────────────────────────── */}
+      <header
+        className="shrink-0 text-white"
+        style={{ background: 'linear-gradient(128deg, #001F65 0%, #1F3F97 52%, #6895FD 100%)' }}
+      >
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 pt-4 pb-6">
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              variant="ghost" size="icon" onClick={onBack}
+              className="-ml-2 rounded-full text-white hover:bg-white/15 hover:text-white"
+              aria-label="Back to your trips"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             {isOwner && (
               <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-white/15 hover:bg-white/25 text-white border border-white/25 backdrop-blur-sm shrink-0 transition-all duration-200">
+                  <Button className="rounded-full bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/30">
                     <UserPlus className="w-4 h-4 mr-2" />Invite
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Invite Collaborator</DialogTitle>
-                    <DialogDescription>Enter the username of the person you want to invite.</DialogDescription>
+                    <DialogTitle>Invite someone to this trip</DialogTitle>
+                    <DialogDescription>They'll be able to see and edit the plan with you. Ask them for their WhereTwo username.</DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleInvite} className="space-y-4">
                     <div className="space-y-2">
@@ -631,111 +631,130 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                         onChange={(e) => setInviteUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                         required placeholder="wheretwo-user-0" />
                     </div>
-                    <Button type="submit" className="w-full">Send Invitation</Button>
+                    <Button type="submit" className="w-full">Send invite</Button>
                   </form>
                 </DialogContent>
               </Dialog>
             )}
           </div>
+
+          <h1 className="font-display mt-4 text-[34px] sm:text-[46px] font-bold leading-[1.02] tracking-[-0.025em] text-balance">
+            {itinerary.title}
+          </h1>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[15px] text-white/85">
+            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-white/70" />{itinerary.location}</span>
+            {itinerary.startDate && itinerary.endDate && (
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-white/70" />
+                {format(parseISO(itinerary.startDate), 'MMM d')} – {format(parseISO(itinerary.endDate), 'MMM d, yyyy')}
+              </span>
+            )}
+            {itinerary.base && <span className="flex items-center gap-1.5"><BedDouble className="w-4 h-4 text-white/70" />{itinerary.base}</span>}
+          </div>
+
+          {/* Travelers */}
+          <div className="mt-5 flex items-center gap-3">
+            <div className="flex -space-x-2">
+              {[itinerary.ownerUsername, ...itinerary.collaborators.map((c: any) => c.username)].map((name: string) => (
+                <span
+                  key={name}
+                  title={`@${name}`}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white text-sm font-semibold ring-2 ring-[#1F3F97]"
+                  style={{ color: INK }}
+                >
+                  {name?.[0]?.toUpperCase()}
+                </span>
+              ))}
+            </div>
+            <span className="text-sm text-white/80">
+              {[itinerary.ownerUsername, ...itinerary.collaborators.map((c: any) => c.username)].map((n: string) => `@${n}`).join(', ')}
+            </span>
+          </div>
         </div>
       </header>
 
-      {/* ── Tabs bar ─────────────────────────────────────────────────────────── */}
-      <div className="shrink-0 bg-white border-b border-border/60 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-hide">
-            {/* Team */}
-            <div className="flex items-center gap-2 mr-3 pr-3 border-r border-border/60 shrink-0">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <div className="flex -space-x-1">
-                <span className="text-xs font-semibold bg-primary text-white px-2 py-0.5 rounded-full">
-                  @{itinerary.ownerUsername}
-                </span>
-                {itinerary.collaborators.map((c: any) => (
-                  <span key={c.userId} className="text-xs font-medium bg-muted text-foreground px-2 py-0.5 rounded-full border border-white">
-                    @{c.username}
+      {/* ── Day strip + view switcher ──────────────────────────────────────── */}
+      <nav id="trip-days" className="sticky top-0 z-20 border-b bg-[#F4F6FB]/95 backdrop-blur" style={{ borderColor: MIST }} aria-label="Trip days">
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 py-3 flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-1 gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 py-0.5">
+            {itinerary.plan.map((day: any, i: number) => {
+              const date = itinerary.startDate ? addDays(parseISO(itinerary.startDate), i) : null;
+              const w = date ? weather[format(date, 'yyyy-MM-dd')] : undefined;
+              const selected = activeTab === 'plan' && activeDay === i;
+              const isToday = date ? isSameDay(date, new Date()) : false;
+              return (
+                <button
+                  key={day.day}
+                  onClick={() => selectDay(i)}
+                  aria-current={selected ? 'date' : undefined}
+                  className={`relative w-[86px] shrink-0 rounded-2xl px-3 py-2.5 text-left transition-colors ${
+                    selected ? 'text-white' : 'bg-white ring-1 ring-[#DDE4F3] hover:ring-[#B9C6E6]'
+                  }`}
+                  style={selected ? { background: INK } : { color: INK }}
+                >
+                  {isToday && (
+                    <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full" style={{ background: TODAY }} aria-label="Today" />
+                  )}
+                  <span className="font-display block text-[26px] font-bold leading-none">{day.day}</span>
+                  <span className={`mt-1 block text-xs ${selected ? 'text-white/75' : 'text-[#5B6B8C]'}`}>
+                    {date ? format(date, 'EEE d') : `Day ${day.day}`}
                   </span>
-                ))}
-              </div>
-            </div>
+                  {w && (
+                    <span className={`mt-1 flex items-center gap-1 text-xs font-medium ${selected ? 'text-white/90' : 'text-[#3A4A6B]'}`}>
+                      <WeatherIcon code={w.code} size={14} />{w.tempMax}°
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-            {/* Flights tab */}
-            <motion.button
-              onClick={() => setActiveTab('flights')}
-              whileTap={{ scale: 0.95 }}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 mr-1 ${
-                activeTab === 'flights'
-                  ? 'bg-primary text-white shadow-md shadow-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              <Plane className="w-3.5 h-3.5" />
-              Flights {flights.length > 0 && <span className="text-xs opacity-70">({flights.length})</span>}
-            </motion.button>
-
-            {/* Map tab */}
-            <motion.button
-              onClick={() => setActiveTab('map')}
-              whileTap={{ scale: 0.95 }}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 mr-1 ${
-                activeTab === 'map'
-                  ? 'bg-primary text-white shadow-md shadow-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              <MapIcon className="w-3.5 h-3.5" />
-              Map
-            </motion.button>
-
-            {/* Separator */}
-            <div className="w-px h-5 bg-border/60 shrink-0 mr-1" />
-
-            {/* Day tabs */}
-            {itinerary.plan.map((day: any, i: number) => (
-              <motion.button
-                key={day.day}
-                onClick={() => { setActiveTab('plan'); scrollToDay(i); }}
-                whileTap={{ scale: 0.95 }}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
-                  activeTab === 'plan' && activeDay === i
-                    ? 'bg-primary text-white shadow-md shadow-primary/25'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+          <div className="flex shrink-0 self-start rounded-full bg-white p-1 ring-1 ring-[#DDE4F3] sm:self-auto" role="tablist">
+            {([
+              { id: 'plan', label: 'Plan' },
+              { id: 'map', label: 'Map' },
+              { id: 'flights', label: flights.length ? `Flights (${flights.length})` : 'Flights' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  activeTab === tab.id ? 'text-white' : 'text-[#5B6B8C] hover:text-[#0E1F4D]'
                 }`}
+                style={activeTab === tab.id ? { background: INK } : undefined}
               >
-                Day {day.day}
-              </motion.button>
+                {tab.label}
+              </button>
             ))}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* ── Fallback warning ─────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {isFallbackPlan(itinerary?.plan) && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="shrink-0 bg-amber-50 border-b border-amber-200 px-6 py-3"
-          >
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-800">AI quota reached — showing placeholder itinerary</p>
-                  <p className="text-xs text-amber-700 mt-0.5">The Gemini API free tier (20 req/day) is exhausted. Try again after midnight UTC.</p>
-                </div>
+      {/* ── Placeholder-plan warning ───────────────────────────────────────── */}
+      {isFallbackPlan(itinerary?.plan) && (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 sm:px-8 py-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900">This is a placeholder plan</p>
+                <p className="text-xs text-amber-800 mt-0.5">The AI planner hit its daily limit. Try again after 5 PM Arizona time (midnight UTC).</p>
               </div>
-              <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={regenerating}
-                className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100">
-                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${regenerating ? 'animate-spin' : ''}`} />
-                {regenerating ? 'Retrying…' : 'Retry'}
-              </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={regenerating}
+              className="shrink-0 border-amber-300 text-amber-900 hover:bg-amber-100">
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${regenerating ? 'animate-spin' : ''}`} />
+              {regenerating ? 'Planning…' : 'Plan again'}
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto">
+      {/* ── Main content ───────────────────────────────────────────────────── */}
+      <main className="bg-[#F4F6FB]">
         <AnimatePresence mode="wait">
 
           {/* ════ FLIGHTS TAB ════ */}
@@ -746,11 +765,11 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               transition={{ duration: 0.3 }}
-              className="max-w-4xl mx-auto px-6 py-8"
+              className="max-w-3xl mx-auto px-5 sm:px-8 py-8"
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-foreground">Flights</h2>
+                  <h2 className="font-display text-2xl font-bold" style={{ color: INK }}>Flights</h2>
                   <p className="text-sm text-muted-foreground mt-0.5">Track your flights for this trip</p>
                 </div>
                 <Button onClick={() => setAddFlightOpen(true)} className="shadow-sm hover:-translate-y-0.5 transition-all duration-200">
@@ -850,10 +869,10 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
               exit={{ opacity: 0, y: 12 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col gap-4">
+              <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-foreground">Map</h2>
+                    <h2 className="font-display text-2xl font-bold" style={{ color: INK }}>Map</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">{itinerary.location}</p>
                   </div>
                   <a
@@ -878,138 +897,135 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                   />
                 </div>
                 <p className="text-xs text-muted-foreground pb-2">
-                  Tap <span className="font-semibold">Maps</span> on any activity card to search that specific stop.
+                  Use <span className="font-semibold">Directions</span> on any stop to open it in Google Maps.
                 </p>
               </div>
             </motion.div>
           )}
 
-          {/* ════ PLAN TAB ════ */}
-          {activeTab === 'plan' && (
-            <motion.div
-              key="plan"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="max-w-4xl mx-auto px-6 py-8 space-y-12"
-            >
-              {itinerary.plan.map((day: any, dayIndex: number) => (
-                <motion.div
-                  key={day.day}
-                  ref={(el) => { dayRefs.current[dayIndex] = el; }}
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: dayIndex * 0.05, ease: [0.25, 0.46, 0.45, 0.94] }}
-                >
-                  {/* Day header */}
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/25 shrink-0">
-                      {day.day}
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-foreground">Day {day.day}</h2>
-                      {day.date && <p className="text-sm text-muted-foreground">{day.date}</p>}
-                    </div>
-                    {(() => {
-                      const dayDate = itinerary.startDate
-                        ? format(addDays(parseISO(itinerary.startDate), dayIndex), 'yyyy-MM-dd')
-                        : null;
-                      const w = dayDate ? weather[dayDate] : undefined;
-                      return w ? (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-100 rounded-full text-sm shrink-0">
-                          <WeatherIcon code={w.code} size={18} />
-                          <span className="font-semibold text-sky-700">{w.tempMax}°</span>
-                          <span className="text-sky-400">/</span>
-                          <span className="text-sky-500">{w.tempMin}°C</span>
-                        </div>
-                      ) : null;
-                    })()}
-                    <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
+          {/* ════ PLAN: one day at a time ════ */}
+          {activeTab === 'plan' && (() => {
+            const day = itinerary.plan[activeDay];
+            if (!day) return null;
+            const dayIndex = activeDay;
+            const date = itinerary.startDate ? addDays(parseISO(itinerary.startDate), dayIndex) : null;
+            const isToday = date ? isSameDay(date, new Date()) : false;
+            const w = date ? weather[format(date, 'yyyy-MM-dd')] : undefined;
+            return (
+              <motion.div
+                key={`day-${day.day}`}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="max-w-5xl mx-auto px-5 sm:px-8 pt-8 pb-16"
+              >
+                {/* Day heading */}
+                <div className="mb-8 sm:pl-[120px]">
+                  <h2 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-[-0.02em]" style={{ color: INK }}>
+                    {date ? format(date, 'EEEE, MMMM d') : `Day ${day.day}`}
+                  </h2>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px]" style={{ color: '#5B6B8C' }}>
+                    {isToday && (
+                      <span className="rounded-full px-2.5 py-0.5 text-sm font-semibold" style={{ background: '#FDF0D9', color: '#8A5300' }}>Today</span>
+                    )}
+                    <span>Day {day.day} of {itinerary.plan.length}</span>
+                    {w && (
+                      <span className="flex items-center gap-1.5">
+                        <WeatherIcon code={w.code} size={18} />
+                        High {w.tempMax}°, low {w.tempMin}°C
+                      </span>
+                    )}
                   </div>
+                </div>
 
-                  {/* Activities — sortable */}
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragStart={handleDragStart}
-                    onDragEnd={(e) => handleDragEnd(e, dayIndex)}
-                  >
-                    <SortableContext
-                      items={day.activities.map((a: any) => a.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <motion.div className="relative pl-6" variants={staggerList} initial="initial" animate="animate">
-                        <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-primary/30 via-border to-transparent rounded-full" />
-                        <div className="space-y-4">
-                          {day.activities.map((activity: any) => (
-                            <SortableActivityCard
-                              key={activity.id}
-                              activity={activity}
-                              dayIndex={dayIndex}
-                              isEditing={editingActivity === activity.id}
-                              editedActivity={editedActivity}
-                              location={itinerary.location}
-                              onEdit={() => handleEditActivity(dayIndex, activity.id)}
-                              onDelete={() => handleDeleteActivity(dayIndex, activity.id)}
-                              onSave={handleSaveActivity}
-                              onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
-                              onEditedChange={setEditedActivity}
-                            />
-                          ))}
-                        </div>
-                      </motion.div>
-                    </SortableContext>
-
-                    {/* Drag overlay — floating ghost card */}
-                    <DragOverlay>
-                      {activeId ? (() => {
-                        const dragActivity = day.activities.find((a: any) => a.id === activeId);
-                        return dragActivity ? (
-                          <div className="pl-6">
-                            <ActivityCardInner
-                              activity={dragActivity}
-                              dayIndex={dayIndex}
-                              isEditing={false}
-                              editedActivity={null}
-                              isDragging={true}
-                              onEdit={() => {}}
-                              onDelete={() => {}}
-                              onSave={() => {}}
-                              onCancel={() => {}}
-                              onEditedChange={() => {}}
-                            />
-                          </div>
-                        ) : null;
-                      })() : null}
-                    </DragOverlay>
-                  </DndContext>
-
-                  {/* Add activity button */}
-                  <motion.button
-                    onClick={() => { setAddActivityDayIndex(dayIndex); setAddActivityOpen(true); }}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="mt-4 ml-6 w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-dashed border-border/70 text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/3 transition-all duration-200 text-sm font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add activity to Day {day.day}
-                  </motion.button>
-
-                  {/* Day connector */}
-                  {dayIndex < itinerary.plan.length - 1 && (
-                    <div className="flex items-center justify-center mt-8">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
-                        <div className="w-8 h-px bg-border" />
-                        <ChevronRight className="w-3 h-3" />
-                        <div className="w-8 h-px bg-border" />
-                      </div>
+                {/* The day's route — sortable */}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={(e) => handleDragEnd(e, dayIndex)}
+                >
+                  <SortableContext items={day.activities.map((a: any) => a.id)} strategy={verticalListSortingStrategy}>
+                    <div>
+                      {day.activities.map((activity: any, i: number) => (
+                        <SortableActivityCard
+                          key={activity.id}
+                          activity={activity}
+                          dayIndex={dayIndex}
+                          isEditing={editingActivity === activity.id}
+                          editedActivity={editedActivity}
+                          location={itinerary.location}
+                          showSlot={i === 0 || day.activities[i - 1].timeSlot !== activity.timeSlot}
+                          isLast={i === day.activities.length - 1}
+                          onEdit={() => handleEditActivity(dayIndex, activity.id)}
+                          onDelete={() => handleDeleteActivity(dayIndex, activity.id)}
+                          onSave={handleSaveActivity}
+                          onCancel={() => { setEditingActivity(null); setEditedActivity(null); }}
+                          onEditedChange={setEditedActivity}
+                        />
+                      ))}
                     </div>
-                  )}
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
+                  </SortableContext>
+
+                  <DragOverlay>
+                    {activeId ? (() => {
+                      const dragActivity = day.activities.find((a: any) => a.id === activeId);
+                      return dragActivity ? (
+                        <ActivityCardInner
+                          activity={dragActivity}
+                          dayIndex={dayIndex}
+                          isEditing={false}
+                          editedActivity={null}
+                          isDragging={true}
+                          isLast
+                          onEdit={() => {}}
+                          onDelete={() => {}}
+                          onSave={() => {}}
+                          onCancel={() => {}}
+                          onEditedChange={() => {}}
+                        />
+                      ) : null;
+                    })() : null}
+                  </DragOverlay>
+                </DndContext>
+
+                {day.activities.length === 0 && (
+                  <p className="mb-6 sm:pl-[120px] text-[15px]" style={{ color: '#5B6B8C' }}>
+                    Nothing planned yet. Add a stop, or keep the day free to wander.
+                  </p>
+                )}
+
+                {/* Add a stop */}
+                <div className="sm:pl-[120px]">
+                  <button
+                    onClick={() => { setAddActivityDayIndex(dayIndex); setAddActivityOpen(true); }}
+                    className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-3 text-[15px] font-medium text-[#5B6B8C] transition-colors hover:border-primary/50 hover:text-primary"
+                    style={{ borderColor: MIST }}
+                  >
+                    <Plus className="h-5 w-5" />
+                    Add a stop to day {day.day}
+                  </button>
+                </div>
+
+                {/* Previous / next day */}
+                {itinerary.plan.length > 1 && (
+                  <div className="mt-10 flex items-center justify-between sm:pl-[120px]">
+                    {dayIndex > 0 ? (
+                      <Button variant="ghost" onClick={() => selectDay(dayIndex - 1)} className="-ml-3 text-[#3A4A6B]">
+                        <ChevronLeft className="mr-1 h-4 w-4" />Day {itinerary.plan[dayIndex - 1].day}
+                      </Button>
+                    ) : <span />}
+                    {dayIndex < itinerary.plan.length - 1 && (
+                      <Button variant="ghost" onClick={() => selectDay(dayIndex + 1)} className="-mr-3 text-[#3A4A6B]">
+                        Day {itinerary.plan[dayIndex + 1].day}<ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
       </main>
 
@@ -1035,7 +1051,7 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
                   onChange={(e) => setNewActivity({ ...newActivity, type: e.target.value })}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  {Object.keys(ACTIVITY_COLORS).filter(k => k !== 'default').map(type => (
+                  {['sightseeing', 'dining', 'shopping', 'culture', 'nature', 'adventure', 'entertainment', 'relaxation'].map(type => (
                     <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
                   ))}
                 </select>
