@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
-import { supabase } from '../../lib/supabase';
+import { supabase, API_BASE, authHeaders } from '../../lib/supabase';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardContent } from './ui/card';
+import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import {
   MapPin, Calendar as CalendarIcon, Users, Plus, LogOut,
-  Trash2, Settings, UserCircle, Pencil, Save, X, Plane,
+  Trash2, Settings, UserCircle, Pencil, Save, X,
 } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -148,8 +147,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       }
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        `${API_BASE}/itineraries`,
+        { headers: authHeaders(token) }
       );
 
       const data = await response.json();
@@ -160,7 +159,7 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
         setItineraries(sorted);
       } else {
         if (response.status === 401) {
-          console.error('fetchItineraries: unauthorized (401). Token:', token, 'response:', data);
+          console.error('fetchItineraries: unauthorized (401):', data);
         } else {
           console.error('fetchItineraries failed:', data);
         }
@@ -249,18 +248,18 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
       const token = latestSession?.access_token || session?.access_token;
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries`,
+        `${API_BASE}/itineraries`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          headers: authHeaders(token),
           body: JSON.stringify({ location: newItinerary.location, base: newItinerary.base, title, area: '', days: days.toString(), startDate, endDate, interests: [], travelStyle: 'balanced', pace: 'moderate' }),
         }
       );
       const data = await response.json();
       if (response.ok) {
         await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${data.itinerary.id}/generate`,
-          { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
+          `${API_BASE}/itineraries/${data.itinerary.id}/generate`,
+          { method: 'POST', headers: authHeaders(token) }
         );
         setCreateDialogOpen(false);
         setNewItinerary({ location: '', base: '', days: '3' });
@@ -288,8 +287,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     if (!confirm('Delete this itinerary?')) return;
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${id}`,
-        { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+        `${API_BASE}/itineraries/${id}`,
+        { method: 'DELETE', headers: authHeaders(session.access_token) }
       );
       if (response.ok) fetchItineraries();
     } catch (error) { console.error(error); }
@@ -298,8 +297,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
   const handleClearAll = async () => {
     if (!confirm('Delete ALL itineraries? This cannot be undone.')) return;
     await Promise.all(itineraries.map(it =>
-      fetch(`https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${it.id}`, {
-        method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` }
+      fetch(`${API_BASE}/itineraries/${it.id}`, {
+        method: 'DELETE', headers: authHeaders(session.access_token)
       })
     ));
     fetchItineraries();
@@ -310,8 +309,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     setSavingChanges(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/username`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ username: newUsername }) }
+        `${API_BASE}/account/username`,
+        { method: 'PUT', headers: authHeaders(session.access_token), body: JSON.stringify({ username: newUsername }) }
       );
       const data = await response.json();
       if (response.ok) { session.user.user_metadata.username = newUsername; setEditingUsername(false); alert('Username updated!'); }
@@ -324,8 +323,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     setSavingChanges(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account/email`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ email: newEmail }) }
+        `${API_BASE}/account/email`,
+        { method: 'PUT', headers: authHeaders(session.access_token), body: JSON.stringify({ email: newEmail }) }
       );
       const data = await response.json();
       if (response.ok) { setEditingEmail(false); alert('Email update initiated! Check both inboxes.'); }
@@ -338,8 +337,8 @@ export function Dashboard({ session, onLogout, onViewItinerary }: DashboardProps
     if (confirmation !== 'DELETE') return;
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/account`,
-        { method: 'DELETE', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+        `${API_BASE}/account`,
+        { method: 'DELETE', headers: authHeaders(session.access_token) }
       );
       if (response.ok) { alert('Your account has been deleted.'); onLogout(); }
     } catch (error) { alert('Failed to delete account'); }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { API_BASE, authHeaders } from '../../lib/supabase';
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
   useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay,
@@ -8,7 +9,6 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { projectId } from '../../../utils/supabase/info';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -132,10 +132,6 @@ function generateId() {
 
 
 // ─── Animation variants ───────────────────────────────────────────────────────
-const cardVariants: any = {
-  initial: { opacity: 0, x: -20 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } },
-};
 const staggerList: any = {
   animate: { transition: { staggerChildren: 0.06 } },
 };
@@ -362,8 +358,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
   const fetchItinerary = async () => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
-        { headers: { 'Authorization': `Bearer ${session.access_token}` } }
+        `${API_BASE}/itineraries/${itineraryId}`,
+        { headers: authHeaders(session.access_token) }
       );
       const data = await response.json();
       if (response.ok) {
@@ -376,10 +372,10 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
 
   const savePlan = async (updatedPlan: any[]) => {
     const response = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
+      `${API_BASE}/itineraries/${itineraryId}`,
       {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        headers: authHeaders(session.access_token),
         body: JSON.stringify({ plan: updatedPlan }),
       }
     );
@@ -390,10 +386,10 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
 
   const saveFlights = async (updatedFlights: any[]) => {
     const response = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}`,
+      `${API_BASE}/itineraries/${itineraryId}`,
       {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        headers: authHeaders(session.access_token),
         body: JSON.stringify({ flights: updatedFlights }),
       }
     );
@@ -406,8 +402,8 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     setRegenerating(true);
     try {
       await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/generate`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${session.access_token}` } }
+        `${API_BASE}/itineraries/${itineraryId}/generate`,
+        { method: 'POST', headers: authHeaders(session.access_token) }
       );
       await fetchItinerary();
     } catch (error) { console.error('Failed to regenerate:', error); }
@@ -418,10 +414,10 @@ export function ItineraryView({ session, itineraryId, onBack }: ItineraryViewPro
     e.preventDefault();
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-9b7ec865/itineraries/${itineraryId}/invite`,
+        `${API_BASE}/itineraries/${itineraryId}/invite`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          headers: authHeaders(session.access_token),
           body: JSON.stringify({ username: inviteUsername }),
         }
       );
