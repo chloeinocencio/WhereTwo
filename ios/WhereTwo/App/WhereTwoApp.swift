@@ -17,6 +17,8 @@ struct WhereTwoApp: App {
                 .environment(auth)
                 .environment(store)
                 .tint(Theme.blue)
+                // One typeface across the app: SF Rounded, matching the rounded titles.
+                .fontDesign(.rounded)
         }
     }
 }
