@@ -7,12 +7,8 @@ enum Theme {
     static let sky = Color(red: 0x5B / 255, green: 0x9B / 255, blue: 0xE0 / 255)
     static let cream = Color(red: 0xF6 / 255, green: 0xF4 / 255, blue: 0xF3 / 255)
 
-    // The app icon's gradient: deep navy at the top into periwinkle.
-    static let iconTop = Color(red: 0x00 / 255, green: 0x1F / 255, blue: 0x65 / 255)
-    static let iconBottom = Color(red: 0x68 / 255, green: 0x95 / 255, blue: 0xFD / 255)
-
     static let headerGradient = LinearGradient(
-        colors: [iconTop, iconBottom],
+        colors: [blue, navy],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
